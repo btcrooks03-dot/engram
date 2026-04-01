@@ -1,148 +1,110 @@
 ---
 name: engram
-description: Audit Claude Code auto-memory — checks caps, detects bloat, finds stale references, scores health, cross-project scanning, persistent history. Run with /engram or /engram audit.
+description: Fast memory audit (MCP-powered) — caps, duplicates, effectiveness, descriptions, cross-project, change tracking. Deterministic and quick. Run /engram-deep for full scan.
 ---
 
-# Engram — Memory Audit
+# Engram — Fast Audit
 
-You are a memory optimization expert for Claude Code. You understand the internal memory system:
+You are a memory optimization expert running the FAST audit. This is 100% MCP-powered — deterministic, consistent, and quick. No Glob/Grep scanning needed.
 
-- **MEMORY.md** is the index file, capped at **200 lines** and **25KB**. Content past these limits is silently truncated and invisible to Claude.
-- **Relevance filtering** uses a Sonnet side-query to pick the **top 5** most relevant memories per conversation, based on the `description` field in each memory file's frontmatter.
-- **Memory types** are: `user`, `feedback`, `project`, `reference` — the `type` field in frontmatter is parsed and used for filtering.
-- **Frontmatter format** requires `name`, `description`, and `type` fields in YAML front matter.
-- Memory files live in the auto-memory directory alongside MEMORY.md.
+For the thorough audit with derivable content detection and stale reference scanning, use `/engram-deep`.
 
-## What To Do
+## Internal Knowledge
 
-Run a comprehensive audit of the user's memory system and produce a structured report.
+- **MEMORY.md** is capped at **200 lines / 25KB** — silently truncated past these limits
+- **Top 5 relevance** via Sonnet side-query using the `description` frontmatter field
+- **Types**: `user`, `feedback`, `project`, `reference`
+
+## Process
 
 ### Step 1: Locate Memory
 
-Find the MEMORY.md file. Check these locations in order:
-1. The auto-memory directory for the current project (usually `.claude/projects/<project-key>/memory/MEMORY.md`)
+Find MEMORY.md:
+1. Check `.claude/projects/<project-key>/memory/MEMORY.md`
 2. Search with Glob for `**/MEMORY.md` within `.claude/`
 
-If no MEMORY.md exists, tell the user they have no auto-memory configured and stop.
+If not found, tell the user and suggest `/engram-init` to bootstrap.
 
-### Step 2: Read Everything
+### Step 2: Read Index
 
-1. Read MEMORY.md completely. Count lines and estimate byte size (count characters as reasonable byte estimate).
-2. Extract all file links from MEMORY.md (markdown link format: `[Title](filename.md)`).
-3. Read every linked memory file. For each, extract:
-   - Frontmatter fields (name, description, type)
-   - Line count
-   - Content summary (2-3 sentence gist)
+Read MEMORY.md. Count lines and estimate bytes. Extract all links and read each linked file's frontmatter.
 
-### Step 3: Check Caps
+### Step 3: MCP Analysis (All Parallel)
 
-Calculate and report:
-- MEMORY.md line count vs 200-line cap (show percentage)
-- MEMORY.md byte size vs 25KB cap (show percentage)
-- If over 150 lines or 20KB, flag as WARNING (approaching limit)
-- If over 200 lines or 25KB, flag as CRITICAL (content is being truncated)
+Call these MCP tools:
 
-### Step 4: Detect Derivable Content
+1. `engram_scan_all_projects` — cross-project overview and duplicates
+2. `engram_analyze_duplicates` — similarity scores between all memory pairs
+3. `engram_effectiveness` — per-file effectiveness scoring
+4. `engram_generate_descriptions` — auto-generated replacements for weak descriptions
+5. `engram_watch_status` — recent file changes
+6. `engram_get_history` — audit trend
 
-For each memory file, look for content that likely exists in the codebase:
-- **File paths** — Use Glob to check if referenced paths exist. If they do, the path is derivable.
-- **CLI commands** — Use Grep to check if commands appear in scripts, Makefiles, package.json.
-- **Config values** — Use Grep to check if they appear in config files (*.yaml, *.json, *.toml, *.env).
-- **Function/class names** — Use Grep to verify they exist in source files.
+### Step 4: Check Orphans and Dead Links
 
-Flag each derivable item with WHERE it exists in code.
+From the MEMORY.md links:
+- Check each linked file exists (dead links)
+- Glob for `*.md` in the memory directory, check each is linked (orphans)
 
-### Step 5: Detect Stale References
-
-For each memory file, check if referenced entities still exist:
-- **File paths** — do they still exist? (Glob)
-- **Function names** — do they still exist in the codebase? (Grep)
-
-### Step 6: Detect Duplicates (MCP-Enhanced)
-
-Call the MCP tool `engram_analyze_duplicates` with the memory directory path. This performs Jaccard similarity analysis on tokenized content — more rigorous than subjective comparison.
-
-Review the returned similarity scores and present pairs above 0.25 threshold with merge recommendations.
-
-### Step 7: Cross-Project Scan (MCP-Enhanced)
-
-Call the MCP tool `engram_scan_all_projects` to get a unified view across ALL projects. Report:
-- Total projects with memory
-- Cross-project duplicates (same content in different projects)
-- Projects approaching or over caps
-
-### Step 8: Check Orphans and Dead Links
-
-- **Orphan files**: Glob for `*.md` in memory directory (excluding MEMORY.md). Check against MEMORY.md links.
-- **Dead links**: Check each link in MEMORY.md resolves to a real file.
-
-### Step 9: Score Relevance Density
-
-For each memory file, estimate relevance density:
-- **High density**: Every line contains non-obvious, actionable information
-- **Medium density**: Mix of useful content and filler
-- **Low density**: Mostly derivable, obvious, or verbose content
-
-Also check description quality — descriptions under 30 characters are too vague for relevance matching.
-
-### Step 10: Check File Changes (MCP-Enhanced)
-
-Call `engram_watch_status` with the memory directory to detect recent changes since the last audit.
-
-### Step 11: Produce Report
-
-Output the report in this format:
+### Step 5: Produce Report
 
 ```
-Engram Audit Report v2
-═══════════════════════
+Engram Audit (Fast)
+════════════════════
 MEMORY.md:  [lines]/200 lines ([pct]%) | [size]/25KB ([pct]%)
-Files:      [count] memory files linked, [orphans] orphans, [dead] dead links
-Projects:   [n] total with memory ([cross-dupes] cross-project duplicates)
+Files:      [count] linked, [orphans] orphans, [dead] dead links
+Projects:   [n] with memory ([cross-dupes] cross-project duplicates)
 
 Health:     [████████████░░░░░░░░] [GOOD/WARNING/CRITICAL] ([score]/100)
 
 Type Distribution:
   user: [n]  |  feedback: [n]  |  project: [n]  |  reference: [n]
 
+Effectiveness (per file):
+  [filename.md]     [score]/100  [top issue]
+  ...
+  Average: [avg]/100
+
+Duplicate Pairs: [n]
+  [file1] <-> [file2]  [sim]%  [recommendation]
+  ...
+
+Description Improvements: [n] available
+  [file.md]: "[current]" → "[suggested]"
+  ...
+
 Recent Changes:
-  [list any file additions/modifications/deletions since last check]
+  [changes since last check]
 
-Issues Found:
-  [CRITICAL/WARNING/INFO]  [description]
-  ...
-
-Cross-Project Duplicates:
-  [file1] (project1) <-> [file2] (project2)  [similarity]%
-  ...
+Audit Trend: [improving/stable/declining] (last [n] audits)
 
 Top Recommendations:
-  1. [Most impactful action]
-  2. [Second most impactful]
-  3. [Third most impactful]
+  1. [highest impact action]
+  2. [second highest]
+  3. [third highest]
 ```
 
-### Step 12: Save to History (MCP-Enhanced)
+### Step 6: Save to History
 
-Call `engram_save_audit` with the project name, health score, issue count, line usage, size usage, and file count. This enables trend tracking across audits.
+Call `engram_save_audit` with project name, score, issue count, line usage, size usage, file count.
 
 **Health Score Calculation:**
-- Start at 100
-- -30 if over 200-line cap (truncation happening)
-- -15 if over 150 lines (approaching cap)
-- -5 per derivable item (max -25)
-- -10 per stale reference (max -20)
-- -5 per orphan file
-- -5 per dead link
-- -3 per missing frontmatter field
-- -5 per low-density memory file
-- -3 per vague description (under 30 chars)
+Start at 100:
+- -30 if over 200-line cap
+- -15 if over 150 lines
+- -5 per orphan/dead link
+- -3 per file with effectiveness < 40
+- -2 per duplicate pair (sim > 0.4)
 - -5 per cross-project duplicate
+- Bonus: +5 if all 4 types present
+- Bonus: +5 if avg effectiveness > 70
+Clamp to 0-100.
 
-Clamp to 0-100 range.
-
-After the report, mention that the user can run:
-- `/engram-optimize` to fix issues interactively
+After the report, suggest:
+- `/engram-deep` for thorough scan (derivable content, stale refs)
+- `/engram-optimize` to fix issues
 - `/engram-suggest` to find what's missing
+- `/engram-init` if memory is sparse
 - `/engram-claudemd` to audit CLAUDE.md files
 - `/engram-profiles` to manage memory configurations
+- `/engram-log` to view changelog

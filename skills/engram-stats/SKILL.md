@@ -1,28 +1,27 @@
 ---
 name: engram-stats
-description: Memory stats dashboard — file counts, cap usage, type distribution, age, cross-project overview, audit trend. Run with /engram-stats.
+description: Memory stats dashboard — cap usage, effectiveness scores, type distribution, cross-project overview, audit trend, changelog. Run with /engram-stats.
 ---
 
 # Engram — Memory Stats
 
-Display a comprehensive stats dashboard for the user's memory system.
+Display a comprehensive stats dashboard.
 
 ## Steps
 
 ### Step 1: Local Stats
-1. Find and read MEMORY.md (check `.claude/projects/*/memory/MEMORY.md` or Glob search)
+1. Find and read MEMORY.md
 2. Extract all linked memory files
-3. Read each file's frontmatter (name, description, type) and check file modification time
-4. Count lines and estimate bytes of MEMORY.md
+3. Read each file's frontmatter and check modification time
+4. Count lines and estimate bytes
 
-### Step 2: Cross-Project Overview (MCP-Enhanced)
-Call `engram_scan_all_projects` to get stats across ALL projects with memory.
-
-### Step 3: Audit Trend (MCP-Enhanced)
-Call `engram_get_history` for the current project to show health score trend.
-
-### Step 4: Recent Changes (MCP-Enhanced)
-Call `engram_watch_status` with the memory directory to show recent file changes.
+### Step 2: MCP Data (All Parallel)
+Call these tools:
+- `engram_scan_all_projects` — cross-project overview
+- `engram_effectiveness` — per-file effectiveness scores
+- `engram_get_history` — audit trend
+- `engram_watch_status` — recent changes
+- `engram_get_changelog` with limit 5 — recent operations
 
 ## Output Format
 
@@ -36,27 +35,26 @@ Size:        [est. bytes]/25KB ([pct]%)
 
 Cap Usage:   [████████████░░░░░░░░] [pct]%
 
-Files:
-  [filename.md]          [type]      [age]     [lines]
-  [filename.md]          [type]      [age]     [lines]
+Effectiveness:
+  [filename.md]     [score]/100  [type]  [age]
   ...
-
-Oldest:      [filename] ([age])
-Newest:      [filename] ([age])
+  Average: [avg]/100
 
 Cross-Project Overview:
-  [project-key]    [files]  [cap%]  [status]
-  [project-key]    [files]  [cap%]  [status]
+  [project-key]    [files]  [cap%]  [avg effectiveness]
   ...
 
-Audit History:
-  [date]  Score: [n]  Lines: [n]  Issues: [n]
+Audit Trend:
   [date]  Score: [n]  Lines: [n]  Issues: [n]
   Trend: [improving/stable/declining]
+
+Recent Operations:
+  [timestamp]  [operation]  [files]  [details]
+  ...
 
 Recent Changes:
   [timestamp]  [file]  [added/modified/deleted]
   ...
 ```
 
-If the user wants details, suggest `/engram` for full audit, `/engram-suggest` for suggestions, or `/engram-claudemd` for CLAUDE.md analysis.
+For details, suggest `/engram` (fast audit), `/engram-deep` (thorough audit), or `/engram-log` (full changelog).

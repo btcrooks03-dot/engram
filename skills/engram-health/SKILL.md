@@ -1,95 +1,95 @@
 ---
 name: engram-health
-description: Quick structural validation of memory files — checks frontmatter, links, types, format, cross-project status, and cap warnings. Run with /engram-health.
+description: Quick structural validation — frontmatter, links, types, descriptions, effectiveness, cross-project, cap warnings. Run with /engram-health.
 ---
 
 # Engram — Memory Health Check
 
-Quick structural validation of memory files. Lightweight checks with cross-project awareness.
+Quick validation with effectiveness awareness. Lightweight but thorough.
 
 ## Checks
 
-Run each check and report as a checklist:
-
 ### 1. MEMORY.md Exists
-- Find MEMORY.md in the auto-memory directory (check `.claude/projects/*/memory/MEMORY.md` or search with Glob)
-- PASS if found, FAIL if missing
+- Find MEMORY.md (`.claude/projects/*/memory/` or Glob search)
+- PASS/FAIL
 
-### 2. MEMORY.md Under Caps
-- Count lines (cap: 200)
-- Estimate bytes (cap: 25,600 / 25KB)
-- PASS if under both, WARNING if over 75% of either, FAIL if over cap
+### 2. Under Caps
+- Lines vs 200, bytes vs 25,600
+- PASS / WARNING (>75%) / FAIL (>100%)
 
 ### 3. All Links Resolve
-- Extract every markdown link from MEMORY.md: `[Title](filename.md)`
-- Check each linked file exists in the memory directory
-- PASS if all resolve, FAIL listing each dead link
+- Every `[Title](file.md)` in MEMORY.md points to an existing file
+- PASS / FAIL (list dead links)
 
-### 4. All Memory Files Linked
-- Glob for all `*.md` files in memory directory (excluding MEMORY.md)
-- Check each is referenced in MEMORY.md
-- PASS if all linked, WARNING listing each orphan
+### 4. All Files Linked
+- Every `*.md` in memory dir is referenced in MEMORY.md
+- PASS / WARNING (list orphans)
 
 ### 5. Valid Frontmatter
-For each memory file, check:
-- Has YAML frontmatter delimited by `---`
-- Has `name` field (non-empty string)
-- Has `description` field (non-empty string, under 150 chars, **at least 30 chars for effective relevance matching**)
-- Has `type` field (one of: `user`, `feedback`, `project`, `reference`)
-- PASS if all valid, FAIL listing each issue
+- YAML frontmatter with `name`, `description` (non-empty, under 150 chars, **30+ chars**), `type` (valid enum)
+- PASS / FAIL (list issues)
 
-### 6. MEMORY.md Format
-- Each entry should be a single line under ~150 characters
-- Entries should be markdown list items with links
-- No raw content in MEMORY.md (it's an index, not a memory)
-- PASS if clean, WARNING listing format issues
+### 6. Index Format
+- Single-line entries, markdown list items with links, no raw content
+- PASS / WARNING
 
-### 7. Description Quality (NEW)
-- Check each memory file's `description` frontmatter field
-- Descriptions under 30 chars: WARNING — too vague for relevance matching
-- Descriptions that are generic ("project info", "notes", "user data"): WARNING
-- PASS if all descriptions are specific and searchable
+### 7. Description Quality
+Call `engram_generate_descriptions`:
+- Descriptions under 30 chars: WARNING
+- Generic descriptions: WARNING
+- Show suggested replacements inline
+- PASS if all specific and searchable
 
-### 8. Type Coverage (NEW)
-- Check if at least one memory of each type exists
-- Missing `feedback` type: WARNING — corrections/confirmations are the most valuable memory type
-- Missing `user` type: INFO — user context helps tailor responses
-- Missing `reference` type: INFO — external resource pointers save re-explaining
-- PASS if all four types are present
+### 8. Type Coverage
+- Missing `feedback`: WARNING (most valuable type)
+- Missing `user`: INFO
+- Missing `reference`: INFO
+- PASS if all 4 present
 
-### 9. Cross-Project Status (MCP-Enhanced)
-Call `engram_scan_all_projects` for a quick cross-project health check:
-- Any other projects over 75% cap? WARNING
-- Any cross-project duplicates detected? INFO
-- PASS if all projects healthy
+### 9. Effectiveness Check
+Call `engram_effectiveness`:
+- Any file scoring < 40: WARNING with reason
+- Average < 60: WARNING
+- PASS if all files >= 40 and average >= 60
 
-### 10. Recent Changes (MCP-Enhanced)
+### 10. Cross-Project Status
+Call `engram_scan_all_projects`:
+- Any project over 75% cap: WARNING
+- Cross-project duplicates: INFO
+- PASS if all healthy
+
+### 11. Recent Changes
 Call `engram_watch_status`:
-- Any changes since last check? Show them.
-- Any cap warnings? Flag them.
+- Show any changes since last check
+- Flag cap warnings
 
-## Output Format
+## Output
 
 ```
-Engram Health Check v2
-═══════════════════════
+Engram Health Check
+════════════════════
 [PASS] MEMORY.md exists
 [PASS] Under line cap (87/200)
 [PASS] Under size cap (4.2KB/25KB)
 [PASS] All 6 links resolve
-[WARN] 1 orphan file not linked: old_notes.md
+[PASS] No orphan files
 [PASS] All frontmatter valid
-[PASS] MEMORY.md format clean
-[WARN] 2 descriptions under 30 chars — weak relevance signal
+[PASS] Index format clean
+[WARN] 2 descriptions need improvement (suggestions available)
 [PASS] All 4 memory types present
-[PASS] All [n] projects healthy
+[WARN] 1 file scoring below 40 — project_old.md (32/100)
+[PASS] All 3 projects healthy
 [INFO] 2 files modified since last check
 
 Result: [passed]/[total] passed, [warnings] warnings
 
 Quick actions:
-  /engram           — Full audit with scoring
+  /engram           — Fast audit with scoring
+  /engram-deep      — Thorough audit with derivable content scan
   /engram-optimize  — Fix issues interactively
   /engram-suggest   — Find what's missing
+  /engram-init      — Bootstrap new project memory
   /engram-claudemd  — Audit CLAUDE.md files
+  /engram-profiles  — Manage memory configurations
+  /engram-log       — View changelog
 ```

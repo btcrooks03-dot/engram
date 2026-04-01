@@ -1,7 +1,7 @@
 {
   "name": "engram",
-  "description": "Elite memory optimization for Claude Code — MCP server with cross-project scanning, persistent audit history, semantic dedup, generative suggestions, CLAUDE.md management, memory profiles, git integration, and file change tracking",
-  "version": "2.0.0",
+  "description": "Elite memory optimization for Claude Code — 20-tool MCP server with deterministic derivable content detection, relevance simulation, TF-IDF description generation, smart merge, effectiveness scoring, proactive hooks, memory profiles, bootstrap, and changelog",
+  "version": "3.0.0",
   "author": {
     "name": "btcrooks03-dot"
   },
@@ -12,11 +12,13 @@
     "memory",
     "optimization",
     "audit",
-    "cleanup",
-    "auto-memory",
     "mcp",
-    "cross-project",
+    "relevance",
+    "effectiveness",
     "profiles",
-    "suggestions"
+    "suggestions",
+    "hooks",
+    "bootstrap",
+    "changelog"
   ]
 }

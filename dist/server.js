@@ -14,6 +14,7 @@ const PROFILES_DIR = path.join(DATA_DIR, "profiles");
 const MEMORY_INDEX = "MEMORY.md";
 const LINE_CAP = 200;
 const SIZE_CAP = 25600; // 25KB
+const CHANGELOG_PATH = path.join(DATA_DIR, "changelog.json");
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function ensureDir(dir) {
     if (!fs.existsSync(dir))
@@ -610,6 +611,527 @@ function detectChanges(memoryDir) {
     }
     return changes;
 }
+function reverseProjectKey(projectKey) {
+    // Claude Code project keys are absolute paths with / replaced by -
+    // e.g., "-Users-ben-myproject" -> "/Users/ben/myproject"
+    if (projectKey.startsWith("-")) {
+        return projectKey.replace(/-/g, "/");
+    }
+    return null;
+}
+function detectDerivableContent(memoryDir, projectDir) {
+    const project = scanProjectMemory(memoryDir, getProjectKey(memoryDir));
+    if (!project)
+        return [];
+    const items = [];
+    // Determine project directory
+    let searchDir = projectDir;
+    if (!searchDir) {
+        const key = getProjectKey(memoryDir);
+        const reversed = reverseProjectKey(key);
+        if (reversed && fs.existsSync(reversed))
+            searchDir = reversed;
+    }
+    for (const file of project.files) {
+        const body = file.content.replace(/^---[\s\S]*?---\n?/, "");
+        const lines = body.split("\n");
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith("#"))
+                continue;
+            // Detect file paths (absolute or relative with extensions)
+            const pathMatches = trimmed.match(/(?:`([^`]+\.[a-z]{1,10})`|(?:^|\s)((?:\.\/|\/|[a-zA-Z][\w-]*\/)[^\s,)]+\.[a-z]{1,10}))/g);
+            if (pathMatches) {
+                for (const pm of pathMatches) {
+                    const cleaned = pm.replace(/`/g, "").trim();
+                    // Check if file exists in project
+                    if (searchDir) {
+                        const fullPath = path.isAbsolute(cleaned) ? cleaned : path.join(searchDir, cleaned);
+                        if (fs.existsSync(fullPath)) {
+                            items.push({ file: file.filename, line: trimmed, type: "file_path", found_at: fullPath });
+                        }
+                    }
+                }
+            }
+            // Detect CLI commands (backtick-wrapped commands or lines starting with common CLIs)
+            const cmdMatch = trimmed.match(/`((?:py|python|python3|node|npm|npx|yarn|pnpm|git|docker|cargo|go|make|pip|curl|wget)\s[^`]+)`/);
+            if (cmdMatch && searchDir) {
+                // Check if command exists in package.json scripts, Makefile, or shell scripts
+                try {
+                    const result = execSync(`grep -rl "${cmdMatch[1].slice(0, 40).replace(/"/g, '\\"')}" --include="*.json" --include="*.sh" --include="Makefile" --include="*.yaml" --include="*.yml" . 2>/dev/null | head -3`, { cwd: searchDir, encoding: "utf-8", timeout: 5000 });
+                    if (result.trim()) {
+                        items.push({
+                            file: file.filename,
+                            line: trimmed,
+                            type: "cli_command",
+                            found_at: result.trim().split("\n")[0],
+                        });
+                    }
+                }
+                catch { }
+            }
+            // Detect function/class names (CamelCase or snake_case identifiers in backticks)
+            const identMatches = trimmed.match(/`([A-Z][a-zA-Z0-9]+(?:\.[a-zA-Z]+)*)`|`([a-z][a-z0-9_]+(?:\.[a-z_]+)*)`/g);
+            if (identMatches && searchDir) {
+                for (const im of identMatches) {
+                    const ident = im.replace(/`/g, "");
+                    if (ident.length < 4 || STOP_WORDS.has(ident.toLowerCase()))
+                        continue;
+                    try {
+                        const result = execSync(`grep -rl "${ident}" --include="*.py" --include="*.js" --include="*.ts" --include="*.go" --include="*.rs" --include="*.java" . 2>/dev/null | head -2`, { cwd: searchDir, encoding: "utf-8", timeout: 5000 });
+                        if (result.trim()) {
+                            items.push({
+                                file: file.filename,
+                                line: trimmed,
+                                type: "function_name",
+                                found_at: result.trim().split("\n")[0],
+                            });
+                        }
+                    }
+                    catch { }
+                }
+            }
+            // Detect config values (KEY=value patterns, specific port numbers, URLs)
+            const configMatch = trimmed.match(/`([A-Z_]{3,})\s*[=:]\s*([^`]+)`/);
+            if (configMatch && searchDir) {
+                try {
+                    const result = execSync(`grep -rl "${configMatch[1]}" --include="*.env" --include="*.yaml" --include="*.yml" --include="*.toml" --include="*.json" --include="*.cfg" . 2>/dev/null | head -2`, { cwd: searchDir, encoding: "utf-8", timeout: 5000 });
+                    if (result.trim()) {
+                        items.push({
+                            file: file.filename,
+                            line: trimmed,
+                            type: "config_value",
+                            found_at: result.trim().split("\n")[0],
+                        });
+                    }
+                }
+                catch { }
+            }
+        }
+    }
+    return items;
+}
+function simulateRelevance(taskDescription, memoryDir) {
+    const project = scanProjectMemory(memoryDir, getProjectKey(memoryDir));
+    if (!project)
+        return [];
+    const taskTokens = tokenize(taskDescription);
+    return project.files
+        .map((file) => {
+        // Score based on description match (primary signal, as per claimed behavior)
+        const descTokens = tokenize(file.description);
+        const descSim = jaccardSimilarity(taskTokens, descTokens);
+        // Also score content match (secondary signal)
+        const contentTokens = tokenize(file.content);
+        const contentSim = jaccardSimilarity(taskTokens, contentTokens);
+        // Weighted: description is 70%, content is 30% (description is primary signal)
+        const score = Math.round((descSim * 0.7 + contentSim * 0.3) * 1000) / 1000;
+        // Find which task terms matched
+        const matched = [...taskTokens].filter((t) => descTokens.has(t) || contentTokens.has(t));
+        return {
+            file: file.filename,
+            description: file.description,
+            type: file.type,
+            score,
+            matchedTerms: matched.slice(0, 10),
+        };
+    })
+        .sort((a, b) => b.score - a.score);
+}
+function generateDescriptions(memoryDir) {
+    const project = scanProjectMemory(memoryDir, getProjectKey(memoryDir));
+    if (!project)
+        return [];
+    const suggestions = [];
+    // Build corpus-wide word frequencies for TF-IDF-like scoring
+    const corpusFreq = {};
+    const totalDocs = project.files.length;
+    for (const file of project.files) {
+        const uniqueWords = tokenize(file.content);
+        for (const word of uniqueWords) {
+            corpusFreq[word] = (corpusFreq[word] || 0) + 1;
+        }
+    }
+    for (const file of project.files) {
+        const needsImprovement = file.description.length < 30 ||
+            /^(project|user|notes|info|data|config|settings|reference|feedback|details|context|misc)$/i.test(file.description.trim().split(/\s+/).slice(-1)[0] || "");
+        if (!needsImprovement)
+            continue;
+        // Extract distinctive terms from this file's content
+        const body = file.content.replace(/^---[\s\S]*?---\n?/, "");
+        const words = body
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, " ")
+            .split(/\s+/)
+            .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+        // Count word frequency within this file
+        const localFreq = {};
+        for (const w of words)
+            localFreq[w] = (localFreq[w] || 0) + 1;
+        // Score by TF-IDF: high local frequency + low corpus frequency = distinctive
+        const scored = Object.entries(localFreq)
+            .map(([word, count]) => {
+            const idf = Math.log((totalDocs + 1) / (corpusFreq[word] || 1));
+            return { word, score: count * idf };
+        })
+            .sort((a, b) => b.score - a.score);
+        // Take top distinctive terms
+        const topTerms = scored.slice(0, 6).map((s) => s.word);
+        // Build a description from the name, type, and top terms
+        const typeLabel = file.type ? `${file.type} memory` : "memory";
+        let suggested;
+        if (topTerms.length >= 3) {
+            // Construct from distinctive terms
+            suggested = `${file.name || "Untitled"} — ${topTerms.slice(0, 4).join(", ")} (${typeLabel})`;
+        }
+        else {
+            suggested = `${file.name || "Untitled"} — ${typeLabel} for ${topTerms.join(", ") || "general context"}`;
+        }
+        // Ensure it's in the sweet spot (40-100 chars)
+        if (suggested.length > 100)
+            suggested = suggested.slice(0, 97) + "...";
+        if (suggested.length < 30)
+            suggested = suggested + " — needs manual enrichment";
+        suggestions.push({
+            file: file.filename,
+            currentDescription: file.description,
+            currentLength: file.description.length,
+            suggestedDescription: suggested,
+            suggestedLength: suggested.length,
+            reason: file.description.length < 30
+                ? `Current description is only ${file.description.length} chars — too short for effective relevance matching`
+                : "Current description uses generic terms that won't match specific task queries",
+        });
+    }
+    return suggestions;
+}
+function generateMerge(memoryDir, file1, file2) {
+    const path1 = path.join(memoryDir, file1);
+    const path2 = path.join(memoryDir, file2);
+    if (!fs.existsSync(path1))
+        return `File not found: ${file1}`;
+    if (!fs.existsSync(path2))
+        return `File not found: ${file2}`;
+    const content1 = fs.readFileSync(path1, "utf-8");
+    const content2 = fs.readFileSync(path2, "utf-8");
+    const fm1 = parseFrontmatter(content1);
+    const fm2 = parseFrontmatter(content2);
+    const body1 = content1.replace(/^---[\s\S]*?---\n?/, "").trim();
+    const body2 = content2.replace(/^---[\s\S]*?---\n?/, "").trim();
+    // Deduplicate lines
+    const lines1 = body1.split("\n").map((l) => l.trim()).filter((l) => l);
+    const lines2 = body2.split("\n").map((l) => l.trim()).filter((l) => l);
+    // Use normalized comparison to find duplicate lines
+    const normalizedSet = new Set();
+    const mergedLines = [];
+    for (const line of lines1) {
+        const norm = line.toLowerCase().replace(/\s+/g, " ");
+        if (!normalizedSet.has(norm)) {
+            normalizedSet.add(norm);
+            mergedLines.push(line);
+        }
+    }
+    for (const line of lines2) {
+        const norm = line.toLowerCase().replace(/\s+/g, " ");
+        if (!normalizedSet.has(norm)) {
+            normalizedSet.add(norm);
+            mergedLines.push(line);
+        }
+    }
+    // Merge frontmatter: prefer longer description, combine names
+    const mergedName = fm1.name || fm2.name || "merged";
+    const mergedDesc = (fm1.description || "").length >= (fm2.description || "").length
+        ? fm1.description || fm2.description || ""
+        : fm2.description || fm1.description || "";
+    const mergedType = fm1.type || fm2.type || "project";
+    const mergedContent = `---
+name: ${mergedName}
+description: ${mergedDesc}
+type: ${mergedType}
+---
+
+${mergedLines.join("\n")}
+`;
+    const sim = jaccardSimilarity(tokenize(content1), tokenize(content2));
+    const origTotal = content1.split("\n").length + content2.split("\n").length;
+    return {
+        file1,
+        file2,
+        similarity: Math.round(sim * 100) / 100,
+        mergedFilename: file1, // Keep the first file's name
+        mergedContent,
+        mergedLines: mergedContent.split("\n").length,
+        originalTotalLines: origTotal,
+        linesSaved: origTotal - mergedContent.split("\n").length,
+    };
+}
+function calculateEffectiveness(memoryDir) {
+    const project = scanProjectMemory(memoryDir, getProjectKey(memoryDir));
+    if (!project)
+        return [];
+    // Precompute token sets for uniqueness scoring
+    const allTokenSets = project.files.map((f) => ({
+        file: f.filename,
+        tokens: tokenize(f.content),
+    }));
+    const now = Date.now();
+    const results = [];
+    for (let i = 0; i < project.files.length; i++) {
+        const file = project.files[i];
+        const issues = [];
+        // 1. Description quality (0-25)
+        let descQuality = 0;
+        if (file.description.length >= 50)
+            descQuality = 25;
+        else if (file.description.length >= 30)
+            descQuality = 15;
+        else if (file.description.length >= 10)
+            descQuality = 5;
+        else {
+            descQuality = 0;
+            issues.push("Description too short for relevance matching");
+        }
+        // Check description specificity — penalize generic words
+        const descWords = file.description.toLowerCase().split(/\s+/);
+        const genericDescWords = new Set(["info", "data", "notes", "stuff", "things", "misc", "general", "various"]);
+        const genericCount = descWords.filter((w) => genericDescWords.has(w)).length;
+        if (genericCount > 0) {
+            descQuality = Math.max(0, descQuality - genericCount * 5);
+            issues.push(`Description contains ${genericCount} generic term(s)`);
+        }
+        // 2. Freshness (0-25)
+        let freshness = 25;
+        const ageMs = now - new Date(file.mtime).getTime();
+        const ageDays = ageMs / (1000 * 60 * 60 * 24);
+        if (file.type === "project") {
+            // Project memories decay fast
+            if (ageDays > 90) {
+                freshness = 0;
+                issues.push("Project memory >90 days old — likely stale");
+            }
+            else if (ageDays > 30) {
+                freshness = 10;
+                issues.push("Project memory >30 days old — review for staleness");
+            }
+            else if (ageDays > 14)
+                freshness = 20;
+        }
+        else if (file.type === "reference") {
+            // References decay slowly
+            if (ageDays > 180) {
+                freshness = 10;
+                issues.push("Reference >6 months old — verify links still work");
+            }
+        }
+        else {
+            // User and feedback memories are fairly stable
+            if (ageDays > 365) {
+                freshness = 15;
+                issues.push("Memory >1 year old — verify still accurate");
+            }
+        }
+        // 3. Uniqueness (0-25) — how distinct is this from other memories?
+        let uniqueness = 25;
+        let maxSim = 0;
+        for (let j = 0; j < allTokenSets.length; j++) {
+            if (i === j)
+                continue;
+            const sim = jaccardSimilarity(allTokenSets[i].tokens, allTokenSets[j].tokens);
+            if (sim > maxSim)
+                maxSim = sim;
+        }
+        if (maxSim > 0.6) {
+            uniqueness = 5;
+            issues.push(`High overlap (${Math.round(maxSim * 100)}%) with another memory — consider merging`);
+        }
+        else if (maxSim > 0.4) {
+            uniqueness = 15;
+            issues.push(`Moderate overlap (${Math.round(maxSim * 100)}%) with another memory`);
+        }
+        // 4. Density (0-15) — useful content per line
+        const body = file.content.replace(/^---[\s\S]*?---\n?/, "");
+        const bodyLines = body.split("\n").filter((l) => l.trim());
+        const totalLines = bodyLines.length;
+        const emptyOrHeader = body.split("\n").filter((l) => !l.trim() || l.trim().startsWith("#")).length;
+        const densityRatio = totalLines > 0 ? (totalLines - emptyOrHeader) / totalLines : 0;
+        let density = Math.round(densityRatio * 15);
+        if (totalLines < 2) {
+            density = 5;
+            issues.push("Very short memory — may not provide enough context");
+        }
+        if (totalLines > 30) {
+            density = Math.max(5, density - 5);
+            issues.push("Long memory — consider trimming to essential information");
+        }
+        // 5. Type appropriateness (0-10)
+        let typeScore = 10;
+        const validTypes = ["user", "feedback", "project", "reference"];
+        if (!validTypes.includes(file.type)) {
+            typeScore = 0;
+            issues.push(`Invalid type "${file.type}" — must be one of: ${validTypes.join(", ")}`);
+        }
+        const total = descQuality + freshness + uniqueness + density + typeScore;
+        results.push({
+            file: file.filename,
+            name: file.name,
+            type: file.type,
+            score: total,
+            breakdown: {
+                descriptionQuality: descQuality,
+                freshness,
+                uniqueness,
+                density,
+                typeAppropriateness: typeScore,
+            },
+            issues,
+        });
+    }
+    return results.sort((a, b) => b.score - a.score);
+}
+function logOperation(operation, files, details) {
+    const log = readJson(CHANGELOG_PATH) || [];
+    log.push({ timestamp: new Date().toISOString(), operation, files, details });
+    while (log.length > 200)
+        log.shift();
+    writeJson(CHANGELOG_PATH, log);
+}
+function getChangelog(limit = 20) {
+    const log = readJson(CHANGELOG_PATH) || [];
+    return log.slice(-limit);
+}
+function bootstrapScan(projectDir) {
+    const suggestions = [];
+    const projectInfo = { path: projectDir };
+    // Detect language/framework
+    const indicators = {
+        python: ["requirements.txt", "setup.py", "pyproject.toml", "Pipfile"],
+        node: ["package.json", "node_modules"],
+        rust: ["Cargo.toml"],
+        go: ["go.mod"],
+        java: ["pom.xml", "build.gradle"],
+        ruby: ["Gemfile"],
+        dotnet: ["*.csproj", "*.sln"],
+    };
+    const detectedLangs = [];
+    for (const [lang, files] of Object.entries(indicators)) {
+        for (const f of files) {
+            if (f.includes("*")) {
+                try {
+                    const result = execSync(`find "${projectDir}" -maxdepth 2 -name "${f}" 2>/dev/null | head -1`, {
+                        encoding: "utf-8",
+                        timeout: 5000,
+                    });
+                    if (result.trim())
+                        detectedLangs.push(lang);
+                }
+                catch { }
+            }
+            else if (fs.existsSync(path.join(projectDir, f))) {
+                detectedLangs.push(lang);
+            }
+        }
+    }
+    projectInfo.languages = [...new Set(detectedLangs)];
+    // Check for common frameworks
+    if (fs.existsSync(path.join(projectDir, "package.json"))) {
+        try {
+            const pkg = JSON.parse(fs.readFileSync(path.join(projectDir, "package.json"), "utf-8"));
+            const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+            projectInfo.frameworks = Object.keys(deps).filter((d) => ["react", "vue", "angular", "next", "nuxt", "express", "fastify", "nest", "svelte"].includes(d));
+            projectInfo.packageName = pkg.name;
+        }
+        catch { }
+    }
+    // Check for existing CLAUDE.md
+    projectInfo.hasClaudeMd = fs.existsSync(path.join(projectDir, "CLAUDE.md"));
+    // Check git info
+    try {
+        const remoteUrl = execSync("git remote get-url origin 2>/dev/null || true", {
+            cwd: projectDir,
+            encoding: "utf-8",
+            timeout: 5000,
+        }).trim();
+        if (remoteUrl)
+            projectInfo.gitRemote = remoteUrl;
+        const recentAuthors = execSync("git log --format='%aN' -20 2>/dev/null | sort | uniq -c | sort -rn | head -3", {
+            cwd: projectDir,
+            encoding: "utf-8",
+            timeout: 5000,
+        }).trim();
+        if (recentAuthors)
+            projectInfo.recentAuthors = recentAuthors;
+    }
+    catch { }
+    // Check directory structure
+    try {
+        const dirs = execSync(`ls -d ${projectDir}/*/ 2>/dev/null | head -15`, {
+            encoding: "utf-8",
+            timeout: 5000,
+        });
+        projectInfo.topDirs = dirs
+            .split("\n")
+            .filter((d) => d.trim())
+            .map((d) => path.basename(d.replace(/\/$/, "")));
+    }
+    catch { }
+    // Always suggest a user memory
+    suggestions.push({
+        type: "user",
+        name: "User Role",
+        description: "User's role, expertise, and how to tailor responses",
+        reasoning: "Every project benefits from Claude knowing who it's working with. This should capture role, technical expertise level, and communication preferences.",
+        priority: "high",
+        content_hints: [
+            "What is your role? (developer, manager, data scientist, etc.)",
+            "What's your experience level with the languages/frameworks in this project?",
+            "Any preferences for how Claude should communicate? (terse vs detailed, etc.)",
+        ],
+    });
+    // Always suggest feedback memory
+    suggestions.push({
+        type: "feedback",
+        name: "Working Preferences",
+        description: "Corrections and confirmed approaches for this project",
+        reasoning: "Feedback memories prevent Claude from repeating mistakes. Start with any strong preferences you already know (testing style, commit conventions, etc.).",
+        priority: "high",
+        content_hints: [
+            "Any approaches you've found work well or poorly with Claude?",
+            "Testing preferences (unit vs integration, mocking vs real, etc.)",
+            "Code style preferences not captured in linters/formatters",
+        ],
+    });
+    // Suggest project memory if there are enough indicators
+    if (projectInfo.languages?.length > 0 || projectInfo.frameworks?.length > 0) {
+        suggestions.push({
+            type: "project",
+            name: "Project Context",
+            description: `${projectInfo.packageName || "Project"} — ${(projectInfo.languages || []).join("/")} ${(projectInfo.frameworks || []).join("/")} project context`,
+            reasoning: "Captures the non-obvious aspects of your project that Claude can't derive from just reading code — the 'why' behind architecture decisions, current priorities, known gotchas.",
+            priority: "medium",
+            content_hints: [
+                "What is this project? (one sentence)",
+                "Any non-obvious architecture decisions and WHY they were made?",
+                "Current priorities or active work areas?",
+                "Known gotchas or things that often trip people up?",
+            ],
+        });
+    }
+    // Suggest reference memory
+    suggestions.push({
+        type: "reference",
+        name: "External Resources",
+        description: "Pointers to dashboards, issue trackers, docs, and external tools",
+        reasoning: "Reference memories save you from re-explaining where things are every conversation. Point to your issue tracker, CI/CD, monitoring, docs, etc.",
+        priority: "medium",
+        content_hints: [
+            "Where are bugs/features tracked? (Linear, Jira, GitHub Issues, etc.)",
+            "Any monitoring dashboards? (Grafana, Datadog, etc.)",
+            "Where are the docs? (Notion, Confluence, README, etc.)",
+            "Any external APIs or services this project depends on?",
+        ],
+    });
+    return { projectInfo, suggestions };
+}
 // ═══════════════════════════════════════════════════════════════════════════════
 // MCP Server
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -932,6 +1454,112 @@ server.tool("engram_watch_status", "Check for memory file changes since last che
             },
         ],
     };
+});
+// ─── Tool: Detect Derivable Content ──────────────────────────────────────────
+server.tool("engram_detect_derivable", "Deterministic derivable content detection — scans memory files for file paths, CLI commands, function names, and config values, then checks if they exist in the project codebase. Returns computed results, not LLM guesses.", {
+    memory_dir: z.string().describe("Path to the memory directory"),
+    project_dir: z.string().optional().describe("Path to the project root (for codebase scanning)"),
+}, async ({ memory_dir, project_dir }) => {
+    const items = detectDerivableContent(memory_dir, project_dir);
+    const byType = {
+        file_paths: items.filter((i) => i.type === "file_path").length,
+        cli_commands: items.filter((i) => i.type === "cli_command").length,
+        function_names: items.filter((i) => i.type === "function_name").length,
+        config_values: items.filter((i) => i.type === "config_value").length,
+    };
+    return {
+        content: [{
+                type: "text",
+                text: JSON.stringify({ totalFound: items.length, byType, items }, null, 2),
+            }],
+    };
+});
+// ─── Tool: Simulate Relevance ────────────────────────────────────────────────
+server.tool("engram_simulate_relevance", "Simulate which memories would be selected for a given task. Scores each memory's description and content against the task description, ranked by likely relevance. Shows the predicted top 5.", {
+    task_description: z.string().describe("Description of the task or conversation topic to simulate"),
+    memory_dir: z.string().describe("Path to the memory directory"),
+}, async ({ task_description, memory_dir }) => {
+    const scores = simulateRelevance(task_description, memory_dir);
+    const top5 = scores.slice(0, 5);
+    const rest = scores.slice(5);
+    return {
+        content: [{
+                type: "text",
+                text: JSON.stringify({
+                    taskDescription: task_description,
+                    predictedSelection: top5.map((s, i) => ({ rank: i + 1, ...s })),
+                    notSelected: rest.map((s) => ({ file: s.file, score: s.score, description: s.description })),
+                    note: "Scores are estimates based on token overlap. Actual selection uses a Sonnet side-query which may weight differently.",
+                }, null, 2),
+            }],
+    };
+});
+// ─── Tool: Generate Descriptions ─────────────────────────────────────────────
+server.tool("engram_generate_descriptions", "Generate improved descriptions for memory files with weak or generic descriptions. Uses TF-IDF-like scoring to extract distinctive terms. Returns ready-to-apply replacements.", { memory_dir: z.string().describe("Path to the memory directory") }, async ({ memory_dir }) => {
+    const suggestions = generateDescriptions(memory_dir);
+    return {
+        content: [{
+                type: "text",
+                text: JSON.stringify({
+                    totalSuggestions: suggestions.length,
+                    suggestions,
+                }, null, 2),
+            }],
+    };
+});
+// ─── Tool: Generate Merge ────────────────────────────────────────────────────
+server.tool("engram_generate_merge", "Generate a deduplicated merge of two memory files. Combines frontmatter, removes duplicate lines, preserves unique content from both. Returns the merged content ready to write.", {
+    memory_dir: z.string().describe("Path to the memory directory"),
+    file1: z.string().describe("First filename (e.g., 'project_notes.md')"),
+    file2: z.string().describe("Second filename (e.g., 'project_context.md')"),
+}, async ({ memory_dir, file1, file2 }) => {
+    const result = generateMerge(memory_dir, file1, file2);
+    if (typeof result === "string") {
+        return { content: [{ type: "text", text: result }] };
+    }
+    logOperation("merge_generated", [file1, file2], `Similarity: ${result.similarity}, lines saved: ${result.linesSaved}`);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+});
+// ─── Tool: Effectiveness Scores ──────────────────────────────────────────────
+server.tool("engram_effectiveness", "Per-file effectiveness scoring (0-100) based on description quality, freshness, uniqueness, density, and type appropriateness. Identifies which memories are pulling their weight and which are dead weight.", { memory_dir: z.string().describe("Path to the memory directory") }, async ({ memory_dir }) => {
+    const scores = calculateEffectiveness(memory_dir);
+    const avg = scores.length > 0 ? Math.round(scores.reduce((s, e) => s + e.score, 0) / scores.length) : 0;
+    return {
+        content: [{
+                type: "text",
+                text: JSON.stringify({
+                    averageScore: avg,
+                    totalFiles: scores.length,
+                    excellent: scores.filter((s) => s.score >= 80).length,
+                    good: scores.filter((s) => s.score >= 60 && s.score < 80).length,
+                    needsWork: scores.filter((s) => s.score >= 40 && s.score < 60).length,
+                    poor: scores.filter((s) => s.score < 40).length,
+                    files: scores,
+                }, null, 2),
+            }],
+    };
+});
+// ─── Tool: Log Operation ─────────────────────────────────────────────────────
+server.tool("engram_log_operation", "Log a memory operation to the changelog. Call this after any memory modification (create, edit, delete, merge, profile switch).", {
+    operation: z.string().describe("Operation type (create, edit, delete, merge, optimize, profile_switch, profile_save)"),
+    files: z.array(z.string()).describe("Files affected"),
+    details: z.string().describe("Brief description of what changed"),
+}, async ({ operation, files, details }) => {
+    logOperation(operation, files, details);
+    return { content: [{ type: "text", text: `Logged: ${operation} on ${files.join(", ")}` }] };
+});
+// ─── Tool: Get Changelog ─────────────────────────────────────────────────────
+server.tool("engram_get_changelog", "Retrieve the memory changelog — a history of all memory operations (creates, edits, deletes, merges, profile switches) with timestamps.", { limit: z.number().optional().describe("Number of entries to return (default 20)") }, async ({ limit }) => {
+    const entries = getChangelog(limit || 20);
+    return { content: [{ type: "text", text: JSON.stringify({ entries, totalEntries: entries.length }, null, 2) }] };
+});
+// ─── Tool: Bootstrap Scan ────────────────────────────────────────────────────
+server.tool("engram_bootstrap", "Scan a project directory and suggest starter memory files. Detects language, framework, git info, and directory structure. Returns structured suggestions for user, feedback, project, and reference memories.", { project_dir: z.string().describe("Path to the project root directory") }, async ({ project_dir }) => {
+    if (!fs.existsSync(project_dir)) {
+        return { content: [{ type: "text", text: `Directory not found: ${project_dir}` }] };
+    }
+    const result = bootstrapScan(project_dir);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
 });
 // ─── Start Server ────────────────────────────────────────────────────────────
 async function main() {
