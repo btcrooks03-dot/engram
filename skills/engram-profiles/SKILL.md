@@ -19,6 +19,14 @@ With only 5 memories selected per conversation, having the RIGHT 5 for your curr
 
 ## Process
 
+### Step 0: Locate Memory
+
+Find the MEMORY.md file. Check these locations in order:
+1. The auto-memory directory for the current project (usually `.claude/projects/<project-key>/memory/MEMORY.md`)
+2. Search with Glob for `**/MEMORY.md` within `.claude/`
+
+The memory directory path is needed for all MCP tool calls below.
+
 ### Step 1: Determine Action
 
 Parse the user's request to determine which action:
@@ -50,16 +58,16 @@ If the user just runs `/engram-profiles` with no arguments, show the list and ex
 5. Show what changed (files added, removed, modified)
 
 **For DIFF:**
-1. Read current memory files
-2. Read the named profile's files (from the profiles directory)
-3. Show side-by-side comparison:
-   - Files only in current
+1. Call MCP tool `engram_profile_diff` with the memory directory and profile name
+2. Display the comparison:
+   - Files only in current state
    - Files only in profile
-   - Files in both (with content differences)
+   - Files in both (with changed/unchanged status and line counts)
 
 **For DELETE:**
 1. Confirm with user: "Delete profile '[name]'? This cannot be undone."
-2. Delete the profile directory
+2. Wait for confirmation
+3. Call MCP tool `engram_profile_delete` with the memory directory and profile name
 
 ### Output Format
 

@@ -95,7 +95,7 @@ function scanProjectMemory(memoryDir: string, projectName: string): ProjectMemor
   if (!fs.existsSync(indexPath)) return null;
 
   const indexContent = fs.readFileSync(indexPath, "utf-8");
-  const indexLines = indexContent.split("\n").length;
+  const indexLines = indexContent.length === 0 ? 0 : indexContent.split("\n").length;
   const indexBytes = Buffer.byteLength(indexContent, "utf-8");
 
   const links = extractLinks(indexContent);
@@ -152,6 +152,20 @@ function scanProjectMemory(memoryDir: string, projectName: string): ProjectMemor
 
 // ─── Duplicate Analysis ──────────────────────────────────────────────────────
 
+const STOP_WORDS = new Set([
+  "the", "this", "that", "with", "from", "have", "been", "will", "would", "could",
+  "should", "about", "their", "there", "when", "where", "which", "what", "they",
+  "them", "then", "than", "these", "those", "each", "every", "some", "such",
+  "into", "over", "after", "before", "between", "under", "through", "during",
+  "also", "just", "only", "very", "more", "most", "other", "being", "does",
+  "make", "made", "like", "well", "back", "even", "still", "here", "much",
+  "many", "both", "same", "need", "know", "want", "take", "come", "look",
+  "use", "used", "using", "file", "files", "line", "lines", "can", "not",
+  "are", "was", "were", "for", "and", "but", "all", "any", "its", "has",
+  "had", "how", "may", "new", "now", "old", "see", "way", "who", "did",
+  "get", "got", "let", "say", "she", "too", "her",
+]);
+
 function tokenize(text: string): Set<string> {
   // Remove frontmatter, then extract words
   const body = text.replace(/^---[\s\S]*?---\n?/, "");
@@ -159,7 +173,7 @@ function tokenize(text: string): Set<string> {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
-    .filter((w) => w.length > 2);
+    .filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
   return new Set(words);
 }
 
@@ -184,11 +198,11 @@ function analyzeDuplicates(files: MemoryFile[]): DuplicatePair[] {
   for (let i = 0; i < tokenSets.length; i++) {
     for (let j = i + 1; j < tokenSets.length; j++) {
       const sim = jaccardSimilarity(tokenSets[i].tokens, tokenSets[j].tokens);
-      if (sim > 0.25) {
+      if (sim > 0.2) {
         // Find shared significant words
         const shared = [...tokenSets[i].tokens].filter((w) => tokenSets[j].tokens.has(w));
         // Filter to longer, more meaningful words
-        const topics = shared.filter((w) => w.length > 4).slice(0, 10);
+        const topics = shared.filter((w) => w.length > 3).slice(0, 10);
         pairs.push({
           file1: tokenSets[i].file,
           file2: tokenSets[j].file,
@@ -327,11 +341,23 @@ function generateSuggestions(project: ProjectMemory, projectDir?: string): Sugge
       const commitMessages = log.split("\n").filter((l) => l.trim());
 
       // Find repeated themes in commit messages not covered by memory
+      const commitStopWords = new Set([
+        "update", "updated", "updates", "remove", "removed", "removes",
+        "refactor", "refactored", "refactors", "feature", "change", "changed",
+        "changes", "commit", "fixing", "fixed", "adding", "added", "create",
+        "created", "delete", "deleted", "implement", "implemented", "merge",
+        "merged", "revert", "reverted", "cleanup", "improve", "improved",
+        "handle", "handled", "include", "included", "modify", "modified",
+        "support", "replace", "replaced", "rename", "renamed", "resolve",
+        "resolved", "address", "adjust", "adjusted", "ensure", "initial",
+        "should", "branch", "master", "origin", "squash", "cherry",
+      ]);
       const words = commitMessages
         .join(" ")
         .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
         .split(/\s+/)
-        .filter((w) => w.length > 5);
+        .filter((w) => w.length > 4 && !commitStopWords.has(w) && !STOP_WORDS.has(w));
       const freq: Record<string, number> = {};
       for (const w of words) freq[w] = (freq[w] || 0) + 1;
       const topWords = Object.entries(freq)
@@ -470,6 +496,19 @@ function scanClaudeMd(projectDir?: string): { files: ClaudeMdFile[]; issues: Cla
       /write good tests/i,
       /be careful/i,
       /make sure to/i,
+      /use descriptive variable names/i,
+      /keep functions small/i,
+      /document your code/i,
+      /write readable code/i,
+      /avoid magic numbers/i,
+      /don't repeat yourself/i,
+      /keep it simple/i,
+      /use meaningful names/i,
+      /write maintainable code/i,
+      /handle errors properly/i,
+      /use proper error handling/i,
+      /follow the single responsibility/i,
+      /write unit tests/i,
     ];
     const genericHits = genericPatterns.filter((p) => p.test(file.content));
     if (genericHits.length > 0) {
@@ -500,7 +539,7 @@ function scanClaudeMd(projectDir?: string): { files: ClaudeMdFile[]; issues: Cla
 // ─── Memory Profiles ─────────────────────────────────────────────────────────
 
 function listProfiles(memoryDir: string): Array<{ name: string; created: string; fileCount: number }> {
-  const projectKey = path.basename(path.dirname(memoryDir));
+  const projectKey = getProjectKey(memoryDir);
   const profileDir = path.join(PROFILES_DIR, projectKey);
   if (!fs.existsSync(profileDir)) return [];
 
@@ -515,17 +554,28 @@ function listProfiles(memoryDir: string): Array<{ name: string; created: string;
     });
 }
 
+function sanitizeProfileName(name: string): string {
+  // Strip path traversal, slashes, and non-alphanumeric except hyphens/underscores
+  return name.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
+}
+
+function getProjectKey(memoryDir: string): string {
+  // Consistent project key derivation: use the directory name above "memory/"
+  const parent = path.basename(path.dirname(memoryDir));
+  return parent || "default";
+}
+
 function saveProfile(memoryDir: string, profileName: string): string {
-  const projectKey = path.basename(path.dirname(memoryDir));
-  const profileDir = path.join(PROFILES_DIR, projectKey, profileName);
+  const safeName = sanitizeProfileName(profileName);
+  if (!safeName) return "Invalid profile name. Use alphanumeric characters, hyphens, or underscores.";
+  const projectKey = getProjectKey(memoryDir);
+  const profileDir = path.join(PROFILES_DIR, projectKey, safeName);
 
   if (fs.existsSync(profileDir)) {
-    // Overwrite existing
     fs.rmSync(profileDir, { recursive: true });
   }
   ensureDir(profileDir);
 
-  // Copy all .md files from memory dir to profile dir
   const files = fs.readdirSync(memoryDir).filter((f) => f.endsWith(".md"));
   let copied = 0;
   for (const file of files) {
@@ -533,35 +583,89 @@ function saveProfile(memoryDir: string, profileName: string): string {
     copied++;
   }
 
-  return `Profile "${profileName}" saved with ${copied} files to ${profileDir}`;
+  return `Profile "${safeName}" saved with ${copied} files.`;
 }
 
 function loadProfile(memoryDir: string, profileName: string): string {
-  const projectKey = path.basename(path.dirname(memoryDir));
-  const profileDir = path.join(PROFILES_DIR, projectKey, profileName);
+  const safeName = sanitizeProfileName(profileName);
+  if (!safeName) return "Invalid profile name.";
+  const projectKey = getProjectKey(memoryDir);
+  const profileDir = path.join(PROFILES_DIR, projectKey, safeName);
 
   if (!fs.existsSync(profileDir)) {
-    return `Profile "${profileName}" not found. Use engram_profile_list to see available profiles.`;
+    return `Profile "${safeName}" not found. Use engram_profile_list to see available profiles.`;
+  }
+
+  // Validate profile contains MEMORY.md
+  const profileFiles = fs.readdirSync(profileDir).filter((f) => f.endsWith(".md"));
+  if (!profileFiles.includes(MEMORY_INDEX)) {
+    return `Profile "${safeName}" is invalid — it does not contain a ${MEMORY_INDEX}. This profile may be corrupted.`;
   }
 
   // Backup current as "_previous"
   saveProfile(memoryDir, "_previous_auto_backup");
 
-  // Clear current memory files (except MEMORY.md backup)
+  // Clear current memory files
   const currentFiles = fs.readdirSync(memoryDir).filter((f) => f.endsWith(".md"));
   for (const file of currentFiles) {
     fs.unlinkSync(path.join(memoryDir, file));
   }
 
   // Copy profile files to memory dir
-  const profileFiles = fs.readdirSync(profileDir).filter((f) => f.endsWith(".md"));
   let restored = 0;
   for (const file of profileFiles) {
     fs.copyFileSync(path.join(profileDir, file), path.join(memoryDir, file));
     restored++;
   }
 
-  return `Profile "${profileName}" loaded (${restored} files). Previous state backed up as "_previous_auto_backup".`;
+  return `Profile "${safeName}" loaded (${restored} files). Previous state backed up as "_previous_auto_backup".`;
+}
+
+function deleteProfile(memoryDir: string, profileName: string): string {
+  const safeName = sanitizeProfileName(profileName);
+  if (!safeName) return "Invalid profile name.";
+  const projectKey = getProjectKey(memoryDir);
+  const profileDir = path.join(PROFILES_DIR, projectKey, safeName);
+
+  if (!fs.existsSync(profileDir)) {
+    return `Profile "${safeName}" not found.`;
+  }
+
+  const fileCount = fs.readdirSync(profileDir).filter((f) => f.endsWith(".md")).length;
+  fs.rmSync(profileDir, { recursive: true });
+  return `Profile "${safeName}" deleted (${fileCount} files removed).`;
+}
+
+function diffProfile(memoryDir: string, profileName: string): {
+  onlyCurrent: string[];
+  onlyProfile: string[];
+  both: Array<{ file: string; changed: boolean; currentLines: number; profileLines: number }>;
+} {
+  const safeName = sanitizeProfileName(profileName);
+  const projectKey = getProjectKey(memoryDir);
+  const profileDir = path.join(PROFILES_DIR, projectKey, safeName);
+
+  const currentFiles = new Set(fs.readdirSync(memoryDir).filter((f) => f.endsWith(".md")));
+  const profileFiles = new Set(
+    fs.existsSync(profileDir) ? fs.readdirSync(profileDir).filter((f) => f.endsWith(".md")) : []
+  );
+
+  const onlyCurrent = [...currentFiles].filter((f) => !profileFiles.has(f));
+  const onlyProfile = [...profileFiles].filter((f) => !currentFiles.has(f));
+  const both = [...currentFiles]
+    .filter((f) => profileFiles.has(f))
+    .map((file) => {
+      const currentContent = fs.readFileSync(path.join(memoryDir, file), "utf-8");
+      const profileContent = fs.readFileSync(path.join(profileDir, file), "utf-8");
+      return {
+        file,
+        changed: currentContent !== profileContent,
+        currentLines: currentContent.length === 0 ? 0 : currentContent.split("\n").length,
+        profileLines: profileContent.length === 0 ? 0 : profileContent.split("\n").length,
+      };
+    });
+
+  return { onlyCurrent, onlyProfile, both };
 }
 
 // ─── Audit History ───────────────────────────────────────────────────────────
@@ -613,10 +717,10 @@ function saveChanges(changes: FileChange[]) {
 const SNAPSHOTS_PATH = path.join(DATA_DIR, "file-snapshots.json");
 
 function detectChanges(memoryDir: string): FileChange[] {
-  const snapshots: Record<string, { size: number; mtime: number }> = readJson(SNAPSHOTS_PATH) || {};
-  const newSnapshots: Record<string, { size: number; mtime: number }> = {};
+  const allSnapshots: Record<string, { size: number; mtime: number }> = readJson(SNAPSHOTS_PATH) || {};
   const changes: FileChange[] = [];
   const now = new Date().toISOString();
+  const keysInThisDir = new Set<string>();
 
   try {
     const currentFiles = fs.readdirSync(memoryDir).filter((f) => f.endsWith(".md"));
@@ -624,31 +728,34 @@ function detectChanges(memoryDir: string): FileChange[] {
       const fullPath = path.join(memoryDir, file);
       const stat = fs.statSync(fullPath);
       const key = fullPath;
-      newSnapshots[key] = { size: stat.size, mtime: stat.mtimeMs };
+      keysInThisDir.add(key);
 
-      if (!snapshots[key]) {
+      if (!allSnapshots[key]) {
         changes.push({ file, type: "added", timestamp: now, sizeDelta: stat.size });
-      } else if (snapshots[key].mtime !== stat.mtimeMs) {
+      } else if (allSnapshots[key].mtime !== stat.mtimeMs) {
         changes.push({
           file,
           type: "modified",
           timestamp: now,
-          sizeDelta: stat.size - snapshots[key].size,
+          sizeDelta: stat.size - allSnapshots[key].size,
         });
       }
+      // Update snapshot for this file (merge, not overwrite)
+      allSnapshots[key] = { size: stat.size, mtime: stat.mtimeMs };
     }
 
-    // Check for deleted files
-    for (const key of Object.keys(snapshots)) {
-      if (key.startsWith(memoryDir) && !newSnapshots[key]) {
+    // Check for deleted files (only within this memoryDir)
+    for (const key of Object.keys(allSnapshots)) {
+      if (key.startsWith(memoryDir + path.sep) && !keysInThisDir.has(key)) {
         const file = path.basename(key);
-        changes.push({ file, type: "deleted", timestamp: now, sizeDelta: -snapshots[key].size });
+        changes.push({ file, type: "deleted", timestamp: now, sizeDelta: -allSnapshots[key].size });
+        delete allSnapshots[key];
       }
     }
   } catch {}
 
-  // Update snapshots
-  writeJson(SNAPSHOTS_PATH, newSnapshots);
+  // Merge-write snapshots (preserves other projects' data)
+  writeJson(SNAPSHOTS_PATH, allSnapshots);
 
   // Append to change history
   if (changes.length > 0) {
@@ -696,17 +803,20 @@ server.tool(
       }
     }
 
+    // Precompute token sets to avoid O(n^2) tokenize calls
+    const tokenCache = allFiles.map((f) => ({ ...f, tokens: tokenize(f.content) }));
+
     const crossDupes: Array<{ file1: string; project1: string; file2: string; project2: string; similarity: number }> = [];
-    for (let i = 0; i < allFiles.length; i++) {
-      for (let j = i + 1; j < allFiles.length; j++) {
-        if (allFiles[i].project === allFiles[j].project) continue;
-        const sim = jaccardSimilarity(tokenize(allFiles[i].content), tokenize(allFiles[j].content));
+    for (let i = 0; i < tokenCache.length; i++) {
+      for (let j = i + 1; j < tokenCache.length; j++) {
+        if (tokenCache[i].project === tokenCache[j].project) continue;
+        const sim = jaccardSimilarity(tokenCache[i].tokens, tokenCache[j].tokens);
         if (sim > 0.3) {
           crossDupes.push({
-            file1: allFiles[i].filename,
-            project1: allFiles[i].project,
-            file2: allFiles[j].filename,
-            project2: allFiles[j].project,
+            file1: tokenCache[i].filename,
+            project1: tokenCache[i].project,
+            file2: tokenCache[j].filename,
+            project2: tokenCache[j].project,
             similarity: Math.round(sim * 100) / 100,
           });
         }
@@ -898,21 +1008,30 @@ server.tool(
     // Cross-reference with memory if we can find it
     if (project_dir) {
       // Try to find the memory dir for this project
+      // Claude Code uses the absolute path with slashes replaced by hyphens, with leading hyphen
       const projectKey = project_dir.replace(/\//g, "-");
       const possibleMemoryDir = path.join(PROJECTS_DIR, projectKey, "memory");
-      if (fs.existsSync(possibleMemoryDir)) {
-        const project = scanProjectMemory(possibleMemoryDir, projectKey);
+      // Also try without leading hyphen
+      const altKey = projectKey.replace(/^-/, "");
+      const altMemoryDir = path.join(PROJECTS_DIR, altKey, "memory");
+      const actualMemoryDir = fs.existsSync(possibleMemoryDir)
+        ? possibleMemoryDir
+        : fs.existsSync(altMemoryDir)
+          ? altMemoryDir
+          : null;
+      if (actualMemoryDir) {
+        const project = scanProjectMemory(actualMemoryDir, projectKey);
         if (project) {
           // Check for overlap between CLAUDE.md content and memory content
           for (const claudeFile of result.files) {
             for (const memFile of project.files) {
               const sim = jaccardSimilarity(tokenize(claudeFile.content), tokenize(memFile.content));
-              if (sim > 0.25) {
+              if (sim > 0.2) {
                 result.issues.push({
                   file: claudeFile.path,
                   type: "overlap_with_memory",
                   detail: `Significant overlap (${Math.round(sim * 100)}%) with memory file "${memFile.filename}". CLAUDE.md and memory serve different purposes — CLAUDE.md for deterministic instructions, memory for contextual recall. Deduplicate.`,
-                  severity: sim > 0.4 ? "high" : "medium",
+                  severity: sim > 0.35 ? "high" : "medium",
                 });
               }
             }
@@ -985,6 +1104,36 @@ server.tool(
   async ({ memory_dir, profile_name }) => {
     const result = loadProfile(memory_dir, profile_name);
     return { content: [{ type: "text" as const, text: result }] };
+  }
+);
+
+// ─── Tool: Profile Delete ────────────────────────────────────────────────────
+
+server.tool(
+  "engram_profile_delete",
+  "Delete a saved memory profile permanently.",
+  {
+    memory_dir: z.string().describe("Path to the memory directory"),
+    profile_name: z.string().describe("Name of the profile to delete"),
+  },
+  async ({ memory_dir, profile_name }) => {
+    const result = deleteProfile(memory_dir, profile_name);
+    return { content: [{ type: "text" as const, text: result }] };
+  }
+);
+
+// ─── Tool: Profile Diff ─────────────────────────────────────────────────────
+
+server.tool(
+  "engram_profile_diff",
+  "Compare current memory state with a saved profile. Shows files only in current, only in profile, and files in both with change status.",
+  {
+    memory_dir: z.string().describe("Path to the memory directory"),
+    profile_name: z.string().describe("Name of the profile to compare against"),
+  },
+  async ({ memory_dir, profile_name }) => {
+    const diff = diffProfile(memory_dir, profile_name);
+    return { content: [{ type: "text" as const, text: JSON.stringify(diff, null, 2) }] };
   }
 );
 

@@ -17,6 +17,14 @@ You are a memory optimization expert for Claude Code. You will walk the user thr
 
 ## Process
 
+### Step 0: Locate Memory
+
+Find the MEMORY.md file. Check these locations in order:
+1. The auto-memory directory for the current project (usually `.claude/projects/<project-key>/memory/MEMORY.md`)
+2. Search with Glob for `**/MEMORY.md` within `.claude/`
+
+If no MEMORY.md exists, tell the user and stop.
+
 ### Step 1: Run Audit First
 
 Before optimizing, run a comprehensive analysis. Use BOTH traditional analysis AND MCP tools:
@@ -60,7 +68,7 @@ Proposed Fix:
 
 Space Saved: [N lines freed]
 
-Apply this fix? (yes/no/skip)
+Apply this fix? (yes/skip/edit)
 ```
 
 Wait for user response before proceeding.
