@@ -251,6 +251,28 @@ engram/
 | Memory/CLAUDE.md overlap | Cross-reference similarity | Redundancy across both systems |
 | Orphans + dead links | Index verification | Invisible files / wasted index lines |
 
+## Phantom Integration
+
+If [Phantom](https://github.com/btcrooks03-dot/phantom) (workflow orchestrator plugin) is installed alongside Engram, the two plugins create a feedback loop: Phantom workflows produce structured session data, Engram turns that into actionable memory insights.
+
+### What Phantom sends to Engram
+
+Three Phantom skills call `engram_log_session` after completion with structured topics:
+
+- **`/phantom-debug`** → bug categories, root cause patterns, affected components
+- **`/phantom-build`** → feature areas, technology patterns, architectural decisions
+- **`/phantom-receive-review`** → review feedback themes, recurring corrections
+
+This is the highest-quality signal for `engram_session_coverage` — structured workflow outcomes are far better than heuristically inferred conversation topics.
+
+### What Engram sends to Phantom
+
+`/phantom-plan` calls `engram_simulate_relevance` during context gathering to check what memories exist for the task. Feedback memories (past corrections) are treated as critical planning overrides.
+
+### Why this matters
+
+Without integration, both plugins are stateless between conversations — Phantom doesn't know what you've learned, Engram doesn't know what workflows you run. Connected, Engram's gap detection actually has data to work with, and Phantom's planner avoids repeating mistakes you've already corrected.
+
 ## Dependencies
 
 - `@modelcontextprotocol/sdk` — MCP protocol
