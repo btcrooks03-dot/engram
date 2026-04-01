@@ -1,6 +1,6 @@
 {
   "name": "engram",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "type": "module",
   "description": "Elite memory optimization for Claude Code — MCP server with cross-project scanning, audit history, semantic dedup, generative suggestions, CLAUDE.md management, memory profiles, and git integration",
   "license": "MIT",

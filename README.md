@@ -5,8 +5,9 @@ Elite memory optimization for [Claude Code](https://claude.ai/code). MCP server 
 ## What Changed in v3
 
 - **Deterministic derivable content detection** — MCP tool scans memory for file paths, CLI commands, function names, and config values, then checks the codebase. No more LLM guesswork.
-- **Relevance simulation** — test which memories would be selected for a given task before starting a conversation
-- **Description generator** — TF-IDF-based auto-generation of optimized descriptions, not just "too short" warnings
+- **Relevance simulation with confidence scoring** — bigram + phrase matching predicts which memories get selected, with high/medium/low confidence indicators per file
+- **Phrase-aware description generator** — extracts bigrams/trigrams, uses type-aware templates to generate purpose-oriented descriptions (not keyword soup)
+- **Conversation pattern learning** — logs session topics over time, analyzes which recurring topics aren't covered by memory. The highest-signal suggestion source: you literally needed this context repeatedly.
 - **Smart merge generator** — produces deduplicated merged files server-side, ready to apply
 - **Per-file effectiveness scoring** — 0-100 score based on description quality, freshness, uniqueness, density, and type
 - **Fast/deep audit split** — `/engram` is now MCP-only (5 seconds, deterministic), `/engram-deep` adds full codebase scanning
@@ -86,10 +87,17 @@ Derivable Content Found: 4 items
   [FUNC_NAME]   project_notes.md  →  defined in ./src/agent.py
 
 Relevance Simulation (for "debug auth flow"):
-  1. feedback_testing.md  (0.42) — auth, testing, flow
-  2. user_role.md         (0.31) — developer, experience
-  3. project_events.md    (0.18) — project, context
-  NOT selected: reference_tools.md, old_notes.md
+  Confidence: medium — some good matches, some uncertain
+  1. feedback_testing.md  (0.42, high)  — phrases: "auth flow", "debug"
+  2. user_role.md         (0.31, medium) — phrases: "developer"
+  3. project_events.md    (0.18, low)    — terms: project
+  NOT selected: reference_tools.md (0.03, low)
+
+Session Coverage (12 sessions logged):
+  Topics covered: 8 of 11 recurring
+  Gaps:
+    "database migration" — 4 sessions, no memory covers it
+    "rate limiting" — 3 sessions, best match: project_notes.md at 8%
 ```
 
 ### `/engram-optimize` — Interactive Optimizer
@@ -160,7 +168,7 @@ Engram Memory Changelog
 
 ## MCP Server Tools
 
-20 tools providing real computation, persistence, and cross-project awareness:
+22 tools providing real computation, persistence, pattern learning, and cross-project awareness:
 
 | Tool | Purpose |
 |------|---------|
@@ -190,6 +198,9 @@ Engram Memory Changelog
 | `engram_log_operation` | Record a memory operation |
 | `engram_get_changelog` | Retrieve operation history |
 | `engram_memory_git_log` | Git-based memory drift tracking |
+| **Learning** | |
+| `engram_log_session` | Log conversation topics for pattern learning |
+| `engram_session_coverage` | Analyze which recurring topics lack memory coverage |
 
 ## Hooks
 

@@ -892,12 +892,53 @@ function detectDerivableContent(memoryDir: string, projectDir?: string): Derivab
 
 // ─── Relevance Simulation ────────────────────────────────────────────────────
 
+function extractBigrams(text: string): Set<string> {
+  const words = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
+  const bigrams = new Set<string>();
+  for (let i = 0; i < words.length - 1; i++) {
+    bigrams.add(`${words[i]} ${words[i + 1]}`);
+  }
+  return bigrams;
+}
+
+function bigramSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  const intersection = [...a].filter((x) => b.has(x)).length;
+  const union = new Set([...a, ...b]).size;
+  return union > 0 ? intersection / union : 0;
+}
+
+// Check for exact substring matches (phrases) between task and text
+function phraseMatchScore(task: string, text: string): number {
+  const taskLower = task.toLowerCase();
+  const textLower = text.toLowerCase();
+  // Extract 2-4 word phrases from task
+  const taskWords = taskLower.split(/\s+/).filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
+  let matches = 0;
+  let total = 0;
+  for (let len = 2; len <= Math.min(4, taskWords.length); len++) {
+    for (let i = 0; i <= taskWords.length - len; i++) {
+      const phrase = taskWords.slice(i, i + len).join(" ");
+      total++;
+      if (textLower.includes(phrase)) matches++;
+    }
+  }
+  return total > 0 ? matches / total : 0;
+}
+
 interface RelevanceScore {
   file: string;
   description: string;
   type: string;
   score: number;
+  confidence: "high" | "medium" | "low";
   matchedTerms: string[];
+  matchedPhrases: string[];
+  breakdown: { descUnigram: number; descBigram: number; descPhrase: number; contentUnigram: number; contentBigram: number };
 }
 
 function simulateRelevance(taskDescription: string, memoryDir: string): RelevanceScore[] {
@@ -905,31 +946,65 @@ function simulateRelevance(taskDescription: string, memoryDir: string): Relevanc
   if (!project) return [];
 
   const taskTokens = tokenize(taskDescription);
+  const taskBigrams = extractBigrams(taskDescription);
 
   return project.files
     .map((file) => {
-      // Score based on description match (primary signal, as per claimed behavior)
+      // Description scoring (primary signal — 60% weight)
       const descTokens = tokenize(file.description);
-      const descSim = jaccardSimilarity(taskTokens, descTokens);
+      const descBigrams = extractBigrams(file.description);
+      const descUnigram = jaccardSimilarity(taskTokens, descTokens);
+      const descBigram = bigramSimilarity(taskBigrams, descBigrams);
+      const descPhrase = phraseMatchScore(taskDescription, file.description);
 
-      // Also score content match (secondary signal)
+      // Content scoring (secondary signal — 30% weight)
       const contentTokens = tokenize(file.content);
-      const contentSim = jaccardSimilarity(taskTokens, contentTokens);
+      const contentBigrams = extractBigrams(file.content);
+      const contentUnigram = jaccardSimilarity(taskTokens, contentTokens);
+      const contentBigram = bigramSimilarity(taskBigrams, contentBigrams);
 
-      // Weighted: description is 70%, content is 30% (description is primary signal)
-      const score = Math.round((descSim * 0.7 + contentSim * 0.3) * 1000) / 1000;
+      // Type bonus (10% weight) — feedback and user memories are generally more relevant
+      const typeBonus = file.type === "feedback" ? 0.05 : file.type === "user" ? 0.03 : 0;
 
-      // Find which task terms matched
-      const matched = [...taskTokens].filter(
-        (t) => descTokens.has(t) || contentTokens.has(t)
-      );
+      // Combined score
+      const descScore = descUnigram * 0.3 + descBigram * 0.4 + descPhrase * 0.3;
+      const contentScore = contentUnigram * 0.5 + contentBigram * 0.5;
+      const score = Math.round((descScore * 0.6 + contentScore * 0.3 + typeBonus) * 1000) / 1000;
+
+      // Confidence: based on how much signal we have
+      const totalMatches = [...taskTokens].filter((t) => descTokens.has(t) || contentTokens.has(t)).length;
+      const confidence: "high" | "medium" | "low" =
+        (descBigram > 0.1 || descPhrase > 0.2) ? "high" :
+        totalMatches >= 3 ? "medium" : "low";
+
+      // Matched terms and phrases
+      const matchedTerms = [...taskTokens].filter((t) => descTokens.has(t) || contentTokens.has(t));
+      const matchedPhrases: string[] = [];
+      const taskWords = taskDescription.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
+      for (let len = 2; len <= Math.min(3, taskWords.length); len++) {
+        for (let i = 0; i <= taskWords.length - len; i++) {
+          const phrase = taskWords.slice(i, i + len).join(" ");
+          if (file.description.toLowerCase().includes(phrase) || file.content.toLowerCase().includes(phrase)) {
+            matchedPhrases.push(phrase);
+          }
+        }
+      }
 
       return {
         file: file.filename,
         description: file.description,
         type: file.type,
         score,
-        matchedTerms: matched.slice(0, 10),
+        confidence,
+        matchedTerms: matchedTerms.slice(0, 10),
+        matchedPhrases: [...new Set(matchedPhrases)].slice(0, 5),
+        breakdown: {
+          descUnigram: Math.round(descUnigram * 1000) / 1000,
+          descBigram: Math.round(descBigram * 1000) / 1000,
+          descPhrase: Math.round(descPhrase * 1000) / 1000,
+          contentUnigram: Math.round(contentUnigram * 1000) / 1000,
+          contentBigram: Math.round(contentBigram * 1000) / 1000,
+        },
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -946,13 +1021,62 @@ interface DescriptionSuggestion {
   reason: string;
 }
 
+function extractKeyPhrases(text: string): Array<{ phrase: string; score: number }> {
+  const words = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 2 && !STOP_WORDS.has(w));
+
+  const phrases: Record<string, number> = {};
+
+  // Extract bigrams
+  for (let i = 0; i < words.length - 1; i++) {
+    const bigram = `${words[i]} ${words[i + 1]}`;
+    phrases[bigram] = (phrases[bigram] || 0) + 1;
+  }
+
+  // Extract trigrams
+  for (let i = 0; i < words.length - 2; i++) {
+    const trigram = `${words[i]} ${words[i + 1]} ${words[i + 2]}`;
+    phrases[trigram] = (phrases[trigram] || 0) + 1;
+  }
+
+  // Also include significant single words
+  const wordFreq: Record<string, number> = {};
+  for (const w of words) wordFreq[w] = (wordFreq[w] || 0) + 1;
+  for (const [w, count] of Object.entries(wordFreq)) {
+    if (count >= 2 || w.length >= 6) phrases[w] = count;
+  }
+
+  return Object.entries(phrases)
+    .map(([phrase, count]) => ({
+      phrase,
+      // Score: frequency * word count bonus (prefer phrases over single words)
+      score: count * (phrase.split(" ").length * 0.7 + 0.3),
+    }))
+    .sort((a, b) => b.score - a.score);
+}
+
+// Type-aware description templates
+const DESC_TEMPLATES: Record<string, (name: string, phrases: string[]) => string> = {
+  user: (name, phrases) =>
+    `${name} — ${phrases.slice(0, 3).join(", ")}; tailor responses to this context`,
+  feedback: (name, phrases) =>
+    `${name} — corrections/preferences: ${phrases.slice(0, 3).join(", ")}`,
+  project: (name, phrases) =>
+    `${name} — ${phrases.slice(0, 3).join(", ")} project context and decisions`,
+  reference: (name, phrases) =>
+    `${name} — pointers to ${phrases.slice(0, 3).join(", ")}`,
+};
+
 function generateDescriptions(memoryDir: string): DescriptionSuggestion[] {
   const project = scanProjectMemory(memoryDir, getProjectKey(memoryDir));
   if (!project) return [];
 
   const suggestions: DescriptionSuggestion[] = [];
 
-  // Build corpus-wide word frequencies for TF-IDF-like scoring
+  // Build corpus-wide frequencies for IDF
   const corpusFreq: Record<string, number> = {};
   const totalDocs = project.files.length;
   for (const file of project.files) {
@@ -971,43 +1095,29 @@ function generateDescriptions(memoryDir: string): DescriptionSuggestion[] {
 
     if (!needsImprovement) continue;
 
-    // Extract distinctive terms from this file's content
     const body = file.content.replace(/^---[\s\S]*?---\n?/, "");
-    const words = body
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
 
-    // Count word frequency within this file
-    const localFreq: Record<string, number> = {};
-    for (const w of words) localFreq[w] = (localFreq[w] || 0) + 1;
+    // Extract key phrases (bigrams + trigrams + significant words)
+    const rawPhrases = extractKeyPhrases(body);
 
-    // Score by TF-IDF: high local frequency + low corpus frequency = distinctive
-    const scored = Object.entries(localFreq)
-      .map(([word, count]) => {
-        const idf = Math.log((totalDocs + 1) / (corpusFreq[word] || 1));
-        return { word, score: count * idf };
-      })
-      .sort((a, b) => b.score - a.score);
+    // Apply TF-IDF weighting to phrases
+    const scoredPhrases = rawPhrases.map((p) => {
+      const phraseWords = p.phrase.split(" ");
+      const avgIdf = phraseWords.reduce((sum, w) => {
+        return sum + Math.log((totalDocs + 1) / (corpusFreq[w] || 1));
+      }, 0) / phraseWords.length;
+      return { phrase: p.phrase, score: p.score * avgIdf };
+    }).sort((a, b) => b.score - a.score);
 
-    // Take top distinctive terms
-    const topTerms = scored.slice(0, 6).map((s) => s.word);
+    const topPhrases = scoredPhrases.slice(0, 5).map((p) => p.phrase);
 
-    // Build a description from the name, type, and top terms
-    const typeLabel = file.type ? `${file.type} memory` : "memory";
-    let suggested: string;
+    // Use type-aware template
+    const template = DESC_TEMPLATES[file.type] || DESC_TEMPLATES.project;
+    let suggested = template(file.name || "Untitled", topPhrases.length > 0 ? topPhrases : ["general context"]);
 
-    if (topTerms.length >= 3) {
-      // Construct from distinctive terms
-      suggested = `${file.name || "Untitled"} — ${topTerms.slice(0, 4).join(", ")} (${typeLabel})`;
-    } else {
-      suggested = `${file.name || "Untitled"} — ${typeLabel} for ${topTerms.join(", ") || "general context"}`;
-    }
-
-    // Ensure it's in the sweet spot (40-100 chars)
-    if (suggested.length > 100) suggested = suggested.slice(0, 97) + "...";
-    if (suggested.length < 30) suggested = suggested + " — needs manual enrichment";
+    // Trim to sweet spot (40-120 chars)
+    if (suggested.length > 120) suggested = suggested.slice(0, 117) + "...";
+    if (suggested.length < 30) suggested = `${file.name || "Untitled"} — ${file.type} memory for ${topPhrases[0] || "this project"}`;
 
     suggestions.push({
       file: file.filename,
@@ -1245,6 +1355,133 @@ function logOperation(operation: string, files: string[], details: string) {
 function getChangelog(limit: number = 20): ChangelogEntry[] {
   const log: ChangelogEntry[] = readJson(CHANGELOG_PATH) || [];
   return log.slice(-limit);
+}
+
+// ─── Session Learning ────────────────────────────────────────────────────────
+
+const SESSIONS_PATH = path.join(DATA_DIR, "sessions.json");
+
+interface SessionRecord {
+  timestamp: string;
+  project?: string;
+  topics: string[];
+  memoryDir?: string;
+}
+
+interface CoverageGap {
+  topic: string;
+  frequency: number;
+  bestMemoryMatch: string;
+  bestScore: number;
+  covered: boolean;
+}
+
+function loadSessions(): SessionRecord[] {
+  return readJson(SESSIONS_PATH) || [];
+}
+
+function saveSessions(sessions: SessionRecord[]) {
+  while (sessions.length > 500) sessions.shift();
+  writeJson(SESSIONS_PATH, sessions);
+}
+
+function logSession(topics: string[], project?: string, memoryDir?: string) {
+  const sessions = loadSessions();
+  sessions.push({
+    timestamp: new Date().toISOString(),
+    project,
+    topics,
+    memoryDir,
+  });
+  saveSessions(sessions);
+}
+
+function analyzeSessionCoverage(memoryDir: string): {
+  totalSessions: number;
+  topicFrequency: Array<{ topic: string; count: number }>;
+  gaps: CoverageGap[];
+  wellCovered: string[];
+  suggestions: string[];
+} {
+  const sessions = loadSessions();
+  const project = scanProjectMemory(memoryDir, getProjectKey(memoryDir));
+
+  // Count topic frequency across all sessions
+  const topicFreq: Record<string, number> = {};
+  for (const session of sessions) {
+    for (const topic of session.topics) {
+      const normalized = topic.toLowerCase().trim();
+      if (normalized.length >= 3) {
+        topicFreq[normalized] = (topicFreq[normalized] || 0) + 1;
+      }
+    }
+  }
+
+  const sortedTopics = Object.entries(topicFreq)
+    .sort(([, a], [, b]) => b - a)
+    .map(([topic, count]) => ({ topic, count }));
+
+  if (!project) {
+    return {
+      totalSessions: sessions.length,
+      topicFrequency: sortedTopics.slice(0, 20),
+      gaps: [],
+      wellCovered: [],
+      suggestions: ["No memory files found — run /engram-init to bootstrap"],
+    };
+  }
+
+  // For each frequent topic, check if any memory covers it
+  const gaps: CoverageGap[] = [];
+  const wellCovered: string[] = [];
+
+  for (const { topic, count } of sortedTopics.slice(0, 30)) {
+    if (count < 2) continue; // Only care about recurring topics
+
+    const topicTokens = tokenize(topic);
+    let bestMatch = "";
+    let bestScore = 0;
+
+    for (const file of project.files) {
+      const descTokens = tokenize(file.description);
+      const contentTokens = tokenize(file.content);
+      const descSim = jaccardSimilarity(topicTokens, descTokens);
+      const contentSim = jaccardSimilarity(topicTokens, contentTokens);
+      const score = descSim * 0.6 + contentSim * 0.4;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = file.filename;
+      }
+    }
+
+    const covered = bestScore > 0.15;
+    if (covered) {
+      wellCovered.push(topic);
+    } else {
+      gaps.push({ topic, frequency: count, bestMemoryMatch: bestMatch, bestScore: Math.round(bestScore * 1000) / 1000, covered });
+    }
+  }
+
+  // Generate suggestions from gaps
+  const suggestions: string[] = [];
+  const topGaps = gaps.sort((a, b) => b.frequency - a.frequency).slice(0, 5);
+  for (const gap of topGaps) {
+    suggestions.push(
+      `Topic "${gap.topic}" came up ${gap.frequency} times but no memory covers it well (best match: ${gap.bestMemoryMatch || "none"} at ${Math.round(gap.bestScore * 100)}%)`
+    );
+  }
+
+  if (gaps.length === 0 && sessions.length >= 5) {
+    suggestions.push("Good coverage — all recurring topics are represented in memory");
+  }
+
+  return {
+    totalSessions: sessions.length,
+    topicFrequency: sortedTopics.slice(0, 20),
+    gaps: topGaps,
+    wellCovered,
+    suggestions,
+  };
 }
 
 // ─── Bootstrap / Onboarding ──────────────────────────────────────────────────
@@ -1889,14 +2126,27 @@ server.tool(
     const top5 = scores.slice(0, 5);
     const rest = scores.slice(5);
 
+    // Also log this as a session topic for pattern learning
+    logSession([task_description], undefined, memory_dir);
+
+    // Overall confidence assessment
+    const highConfCount = top5.filter((s) => s.confidence === "high").length;
+    const overallConfidence =
+      highConfCount >= 3 ? "high — strong matches found" :
+      highConfCount >= 1 ? "medium — some good matches, some uncertain" :
+      "low — weak matches, descriptions may need improvement";
+
     return {
       content: [{
         type: "text" as const,
         text: JSON.stringify({
           taskDescription: task_description,
+          overallConfidence,
           predictedSelection: top5.map((s, i) => ({ rank: i + 1, ...s })),
-          notSelected: rest.map((s) => ({ file: s.file, score: s.score, description: s.description })),
-          note: "Scores are estimates based on token overlap. Actual selection uses a Sonnet side-query which may weight differently.",
+          notSelected: rest.map((s) => ({
+            file: s.file, score: s.score, confidence: s.confidence, description: s.description,
+          })),
+          note: "Scores combine unigram, bigram, and phrase matching weighted 60% description / 30% content / 10% type. Confidence indicates match strength. This task has been logged for pattern learning.",
         }, null, 2),
       }],
     };
@@ -2009,6 +2259,45 @@ server.tool(
     }
     const result = bootstrapScan(project_dir);
     return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+// ─── Tool: Log Session Topics ────────────────────────────────────────────────
+
+server.tool(
+  "engram_log_session",
+  "Log conversation topics for pattern learning. Call this during or after conversations to build a dataset of what topics come up. Over time, engram uses this to identify memory gaps — topics that recur but aren't covered by any memory.",
+  {
+    topics: z.array(z.string()).describe("List of topics/themes from this conversation (e.g., ['auth flow debugging', 'database migration', 'API rate limiting'])"),
+    project: z.string().optional().describe("Project identifier"),
+    memory_dir: z.string().optional().describe("Path to the memory directory"),
+  },
+  async ({ topics, project, memory_dir }) => {
+    logSession(topics, project, memory_dir);
+    const sessions = loadSessions();
+    return {
+      content: [{
+        type: "text" as const,
+        text: `Logged ${topics.length} topics. Total sessions recorded: ${sessions.length}`,
+      }],
+    };
+  }
+);
+
+// ─── Tool: Analyze Session Coverage ──────────────────────────────────────────
+
+server.tool(
+  "engram_session_coverage",
+  "Analyze conversation pattern coverage — which recurring topics are well-covered by memory and which are gaps. Requires session data from engram_log_session. More sessions = better analysis.",
+  { memory_dir: z.string().describe("Path to the memory directory") },
+  async ({ memory_dir }) => {
+    const analysis = analyzeSessionCoverage(memory_dir);
+    return {
+      content: [{
+        type: "text" as const,
+        text: JSON.stringify(analysis, null, 2),
+      }],
+    };
   }
 );
 

@@ -35,6 +35,7 @@ Run these MCP tools in parallel where possible:
 4. `engram_effectiveness` — per-file scoring (description quality, freshness, uniqueness, density)
 5. `engram_generate_descriptions` — auto-generated replacements for weak descriptions
 6. `engram_watch_status` — recent file changes
+7. `engram_session_coverage` — analyze which recurring conversation topics are/aren't covered by memory
 
 ### Step 3: Stale Reference Scan (Tool-Assisted)
 
@@ -88,11 +89,19 @@ Description Improvements Available: [n]
 
 Relevance Simulation (if run):
   For task "[description]":
-    1. [file] (score: [n]) — [matched terms]
+    Confidence: [high/medium/low]
+    1. [file] (score: [n], [confidence]) — phrases: [matched phrases]
     2. ...
-    5. [file] (score: [n])
+    5. [file] (score: [n], [confidence])
     ---
-    NOT selected: [files that scored too low]
+    NOT selected: [files with low confidence]
+
+Session Coverage (if session data exists):
+  Sessions logged: [n]
+  Topics covered:    [n] of [total recurring topics]
+  Coverage gaps:
+    "[topic]" — came up [n] times, best match: [file] at [pct]%
+    ...
 
 Top Recommendations:
   1. [highest impact action]

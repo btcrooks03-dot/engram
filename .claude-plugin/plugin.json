@@ -1,7 +1,7 @@
 {
   "name": "engram",
-  "description": "Elite memory optimization for Claude Code — 20-tool MCP server with deterministic derivable content detection, relevance simulation, TF-IDF description generation, smart merge, effectiveness scoring, proactive hooks, memory profiles, bootstrap, and changelog",
-  "version": "3.0.0",
+  "description": "Elite memory optimization for Claude Code — 22-tool MCP server with deterministic analysis, bigram relevance simulation, phrase-aware description generation, conversation pattern learning, smart merge, effectiveness scoring, proactive hooks, profiles, bootstrap, and changelog",
+  "version": "3.1.0",
   "author": {
     "name": "btcrooks03-dot"
   },

@@ -22,6 +22,7 @@ You are a memory strategist. Instead of trimming fat (that's `/engram-optimize`)
 3. Call `engram_suggest_memories` with memory_dir and project_dir
 4. Call `engram_effectiveness` to see current memory quality
 5. Call `engram_scan_all_projects` for cross-project patterns
+6. Call `engram_session_coverage` to see which conversation topics aren't covered by memory
 
 ### Step 2: Analyze
 
@@ -44,6 +45,11 @@ Review MCP results and apply your own analysis:
 **Pattern Detection:**
 - Git history themes not captured in memory
 - CLAUDE.md instructions that suggest missing memory context
+
+**Session Coverage Gaps** (from `engram_session_coverage`):
+- Topics that came up in multiple conversations but aren't covered by any memory
+- These are the highest-signal suggestions — the user literally needed this context repeatedly
+- Prioritize session gaps over heuristic suggestions
 
 ### Step 3: Present Suggestions
 
