@@ -1,0 +1,18 @@
+{
+  "name": "engram",
+  "description": "Memory optimization for Claude Code — audit, optimize, and manage auto-memory files with knowledge of internal caps, relevance scoring, and type system",
+  "version": "1.0.0",
+  "author": {
+    "name": "btcrooks03-dot"
+  },
+  "homepage": "https://github.com/btcrooks03-dot/engram",
+  "repository": "https://github.com/btcrooks03-dot/engram",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "optimization",
+    "audit",
+    "cleanup",
+    "auto-memory"
+  ]
+}

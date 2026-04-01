@@ -1,0 +1,21 @@
+{
+  "name": "engram",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Claude Code memory optimization plugin — audit, optimize, and manage auto-memory files",
+  "license": "MIT",
+  "author": {
+    "name": "btcrooks03-dot"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/btcrooks03-dot/engram"
+  },
+  "keywords": [
+    "claude-code",
+    "memory",
+    "optimization",
+    "audit",
+    "plugin"
+  ]
+}
