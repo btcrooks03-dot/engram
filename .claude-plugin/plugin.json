@@ -1,7 +1,7 @@
 {
   "name": "engram",
-  "description": "Memory optimization for Claude Code — audit, optimize, and manage auto-memory files with knowledge of internal caps, relevance scoring, and type system",
-  "version": "1.0.0",
+  "description": "Elite memory optimization for Claude Code — MCP server with cross-project scanning, persistent audit history, semantic dedup, generative suggestions, CLAUDE.md management, memory profiles, git integration, and file change tracking",
+  "version": "2.0.0",
   "author": {
     "name": "btcrooks03-dot"
   },
@@ -13,6 +13,10 @@
     "optimization",
     "audit",
     "cleanup",
-    "auto-memory"
+    "auto-memory",
+    "mcp",
+    "cross-project",
+    "profiles",
+    "suggestions"
   ]
 }

@@ -1,6 +1,6 @@
 ---
 name: engram-optimize
-description: Interactive memory optimizer — walks through issues one by one, proposes fixes, user approves each change. Run with /engram-optimize.
+description: Interactive memory optimizer — walks through issues one by one, proposes fixes, user approves each change. Enhanced with semantic dedup and cross-project awareness. Run with /engram-optimize.
 ---
 
 # Engram — Interactive Memory Optimizer
@@ -19,20 +19,30 @@ You are a memory optimization expert for Claude Code. You will walk the user thr
 
 ### Step 1: Run Audit First
 
-Before optimizing, run the same analysis as `/engram` (audit). Identify all issues but do NOT display the full report. Instead, count issues by category:
+Before optimizing, run a comprehensive analysis. Use BOTH traditional analysis AND MCP tools:
+
+1. Read MEMORY.md and all linked files
+2. Call `engram_analyze_duplicates` for rigorous similarity scoring
+3. Call `engram_scan_all_projects` for cross-project duplicate detection
+4. Call `engram_watch_status` for recent change context
+5. Perform traditional checks: derivable content, stale references, orphans, dead links, frontmatter, density
+
+Count issues by category:
 - Derivable content items
 - Stale references
-- Duplicate/overlapping memories
+- Duplicate/overlapping memories (now with similarity scores)
+- Cross-project duplicates
 - Orphan files
 - Dead links
 - Low-density memories
 - Frontmatter issues
+- Vague descriptions (under 30 chars)
 
-Tell the user: "Found [N] issues across [categories]. Let's walk through them one at a time. You approve or reject each change."
+Tell the user: "Found [N] issues across [categories]. Let's walk through them one at a time."
 
 ### Step 2: Walk Through Issues (One at a Time)
 
-For each issue, present in this format:
+For each issue, present:
 
 ```
 Issue [n]/[total]: [CATEGORY]
@@ -53,7 +63,7 @@ Space Saved: [N lines freed]
 Apply this fix? (yes/no/skip)
 ```
 
-Wait for user response before proceeding to next issue.
+Wait for user response before proceeding.
 
 ### Step 3: Handle Each Issue Type
 
@@ -64,41 +74,52 @@ Wait for user response before proceeding to next issue.
 
 **Stale references:**
 - Show what's referenced and that it no longer exists
+- Use Grep to check if it was renamed (not just deleted)
 - Propose updating (if renamed) or removing (if deleted)
-- Use Grep to check if it was renamed
 
-**Duplicate/overlapping content:**
+**Duplicate/overlapping content (MCP-enhanced):**
+- Show the similarity score from `engram_analyze_duplicates`
 - Show both files side by side
-- Propose merging into one file with combined content (deduplicated)
+- For similarity > 0.6: strongly recommend merge
+- For similarity 0.4-0.6: suggest dedup of overlapping parts
+- For similarity 0.25-0.4: flag for review but may be intentional
 - Generate the merged file content
+
+**Cross-project duplicates:**
+- Show which projects share similar memories
+- Suggest moving shared content to a global/user-level memory
+- Or deduplicate if one project's version is more current
 
 **Orphan files:**
 - Show the orphan file's frontmatter
 - Propose adding a link to MEMORY.md, or deleting if irrelevant
 
 **Dead links:**
-- Show the broken link in MEMORY.md
 - Propose removing the line, or fixing the filename if the file was renamed
 
 **Low-density memories:**
-- Show the verbose content
-- Propose a rewritten, denser version
-- Show before/after line counts
+- Show verbose content
+- Propose a rewritten, denser version with before/after line counts
 
 **Frontmatter issues:**
 - Show what's missing or invalid
 - Propose corrected frontmatter
 - Improve `description` to be more specific (better relevance matching)
 
+**Vague descriptions:**
+- Show the current short description
+- Propose a specific, searchable replacement (40-100 chars)
+- Explain that description is the primary relevance signal
+
 ### Step 4: Apply Approved Changes
 
-For each change the user approves:
+For each approved change:
 - Use the Edit tool to make the exact change
 - Confirm the edit was applied
 
 ### Step 5: Summary
 
-After all issues are processed, show:
+After all issues are processed:
 
 ```
 Engram Optimization Complete
@@ -111,9 +132,14 @@ Before:           [old lines]/200 ([old pct]%)
 After:            [new lines]/200 ([new pct]%)
 ```
 
+Then call `engram_save_audit` to record the post-optimization state.
+
+Suggest running `/engram-suggest` to find what's missing now that space has been freed.
+
 ## Rules
 
 - **NEVER auto-apply changes.** Every single change requires user approval.
 - **NEVER delete a memory file** without explicit user confirmation.
 - **Preserve non-obvious context** — if a memory has derivable content mixed with non-obvious insights, only remove the derivable parts.
 - **One issue at a time** — do not batch multiple issues into one prompt.
+- **Show similarity scores** — when flagging duplicates, always show the computed score so the user can calibrate.

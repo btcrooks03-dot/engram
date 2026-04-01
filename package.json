@@ -1,8 +1,8 @@
 {
   "name": "engram",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "Claude Code memory optimization plugin — audit, optimize, and manage auto-memory files",
+  "description": "Elite memory optimization for Claude Code — MCP server with cross-project scanning, audit history, semantic dedup, generative suggestions, CLAUDE.md management, memory profiles, and git integration",
   "license": "MIT",
   "author": {
     "name": "btcrooks03-dot"
@@ -16,6 +16,19 @@
     "memory",
     "optimization",
     "audit",
+    "mcp",
     "plugin"
-  ]
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "tsc"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.3"
+  }
 }

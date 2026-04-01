@@ -6,8 +6,8 @@
   "plugins": [
     {
       "name": "engram",
-      "description": "Memory optimization for Claude Code — audit, optimize, and manage auto-memory files",
-      "version": "1.0.0",
+      "description": "Elite memory optimization for Claude Code — MCP server with cross-project scanning, semantic dedup, generative suggestions, CLAUDE.md management, memory profiles, and git integration",
+      "version": "2.0.0",
       "source": "./",
       "author": {
         "name": "btcrooks03-dot"

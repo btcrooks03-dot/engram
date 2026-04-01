@@ -1,6 +1,6 @@
 ---
 name: engram
-description: Audit Claude Code auto-memory — checks caps, detects bloat, finds stale references, scores health. Run with /engram or /engram audit.
+description: Audit Claude Code auto-memory — checks caps, detects bloat, finds stale references, scores health, cross-project scanning, persistent history. Run with /engram or /engram audit.
 ---
 
 # Engram — Memory Audit
@@ -27,7 +27,7 @@ If no MEMORY.md exists, tell the user they have no auto-memory configured and st
 
 ### Step 2: Read Everything
 
-1. Read MEMORY.md completely. Count lines and measure byte size of MEMORY.md (count the total characters in the file content).
+1. Read MEMORY.md completely. Count lines and estimate byte size (count characters as reasonable byte estimate).
 2. Extract all file links from MEMORY.md (markdown link format: `[Title](filename.md)`).
 3. Read every linked memory file. For each, extract:
    - Frontmatter fields (name, description, type)
@@ -45,57 +45,75 @@ Calculate and report:
 ### Step 4: Detect Derivable Content
 
 For each memory file, look for content that likely exists in the codebase:
-- **File paths** — Use Glob to check if referenced paths exist. If they do, the path is derivable from the codebase.
-- **CLI commands** — Look for command-line invocations (lines starting with backtick-wrapped commands like `py`, `python`, `npm`, `node`, `git`, etc.). Use Grep to check if these commands appear in scripts, Makefiles, package.json, or main entry files.
-- **Config values** — Look for specific numbers, IDs, or settings that look like configuration. Use Grep to check if they appear in config files (*.yaml, *.json, *.toml, *.env).
-- **Function/class names** — Look for code identifiers mentioned in memory. Use Grep to verify they exist in source files.
+- **File paths** — Use Glob to check if referenced paths exist. If they do, the path is derivable.
+- **CLI commands** — Use Grep to check if commands appear in scripts, Makefiles, package.json.
+- **Config values** — Use Grep to check if they appear in config files (*.yaml, *.json, *.toml, *.env).
+- **Function/class names** — Use Grep to verify they exist in source files.
 
-Flag each derivable item with WHERE it exists in code so the user can verify.
+Flag each derivable item with WHERE it exists in code.
 
 ### Step 5: Detect Stale References
 
 For each memory file, check if referenced entities still exist:
-- **File paths** mentioned in memory — do they still exist? (Glob)
-- **Function names** mentioned — do they still exist in the codebase? (Grep)
+- **File paths** — do they still exist? (Glob)
+- **Function names** — do they still exist in the codebase? (Grep)
 
-Flag anything that references something that no longer exists.
+### Step 6: Detect Duplicates (MCP-Enhanced)
 
-### Step 6: Detect Duplicates and Overlaps
+Call the MCP tool `engram_analyze_duplicates` with the memory directory path. This performs Jaccard similarity analysis on tokenized content — more rigorous than subjective comparison.
 
-Compare memory files pairwise:
-- Do any two files cover the same topic?
-- Are there repeated facts across files?
-- Could any files be merged?
+Review the returned similarity scores and present pairs above 0.25 threshold with merge recommendations.
 
-### Step 7: Check Orphans and Dead Links
+### Step 7: Cross-Project Scan (MCP-Enhanced)
 
-- **Orphan files**: Use Glob to find all `*.md` files in the memory directory (excluding MEMORY.md). Check each against MEMORY.md links. Files not linked are orphans.
-- **Dead links**: Check each link in MEMORY.md resolves to a real file in the same directory.
+Call the MCP tool `engram_scan_all_projects` to get a unified view across ALL projects. Report:
+- Total projects with memory
+- Cross-project duplicates (same content in different projects)
+- Projects approaching or over caps
 
-### Step 8: Score Relevance Density
+### Step 8: Check Orphans and Dead Links
+
+- **Orphan files**: Glob for `*.md` in memory directory (excluding MEMORY.md). Check against MEMORY.md links.
+- **Dead links**: Check each link in MEMORY.md resolves to a real file.
+
+### Step 9: Score Relevance Density
 
 For each memory file, estimate relevance density:
 - **High density**: Every line contains non-obvious, actionable information
-- **Medium density**: Mix of useful content and filler (headers, blank lines, obvious info)
+- **Medium density**: Mix of useful content and filler
 - **Low density**: Mostly derivable, obvious, or verbose content
 
-### Step 9: Produce Report
+Also check description quality — descriptions under 30 characters are too vague for relevance matching.
 
-Output the report in this exact format:
+### Step 10: Check File Changes (MCP-Enhanced)
+
+Call `engram_watch_status` with the memory directory to detect recent changes since the last audit.
+
+### Step 11: Produce Report
+
+Output the report in this format:
 
 ```
-Engram Audit Report
-═══════════════════
+Engram Audit Report v2
+═══════════════════════
 MEMORY.md:  [lines]/200 lines ([pct]%) | [size]/25KB ([pct]%)
 Files:      [count] memory files linked, [orphans] orphans, [dead] dead links
+Projects:   [n] total with memory ([cross-dupes] cross-project duplicates)
 
 Health:     [████████████░░░░░░░░] [GOOD/WARNING/CRITICAL] ([score]/100)
 
 Type Distribution:
   user: [n]  |  feedback: [n]  |  project: [n]  |  reference: [n]
 
+Recent Changes:
+  [list any file additions/modifications/deletions since last check]
+
 Issues Found:
   [CRITICAL/WARNING/INFO]  [description]
+  ...
+
+Cross-Project Duplicates:
+  [file1] (project1) <-> [file2] (project2)  [similarity]%
   ...
 
 Top Recommendations:
@@ -103,6 +121,10 @@ Top Recommendations:
   2. [Second most impactful]
   3. [Third most impactful]
 ```
+
+### Step 12: Save to History (MCP-Enhanced)
+
+Call `engram_save_audit` with the project name, health score, issue count, line usage, size usage, and file count. This enables trend tracking across audits.
 
 **Health Score Calculation:**
 - Start at 100
@@ -114,5 +136,13 @@ Top Recommendations:
 - -5 per dead link
 - -3 per missing frontmatter field
 - -5 per low-density memory file
+- -3 per vague description (under 30 chars)
+- -5 per cross-project duplicate
 
 Clamp to 0-100 range.
+
+After the report, mention that the user can run:
+- `/engram-optimize` to fix issues interactively
+- `/engram-suggest` to find what's missing
+- `/engram-claudemd` to audit CLAUDE.md files
+- `/engram-profiles` to manage memory configurations
