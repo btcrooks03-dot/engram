@@ -27,7 +27,7 @@ If no MEMORY.md exists, tell the user they have no auto-memory configured and st
 
 ### Step 2: Read Everything
 
-1. Read MEMORY.md completely. Count lines and estimate bytes (line count × average ~60 bytes per line, or count actual characters).
+1. Read MEMORY.md completely. Count lines and measure byte size of MEMORY.md (count the total characters in the file content).
 2. Extract all file links from MEMORY.md (markdown link format: `[Title](filename.md)`).
 3. Read every linked memory file. For each, extract:
    - Frontmatter fields (name, description, type)

@@ -32,6 +32,7 @@ Files:
 
 Oldest:      [filename] ([age])
 Newest:      [filename] ([age])
+Avg age:     [average] days
 ```
 
 Keep it brief. This is a dashboard glance, not a full audit. If the user wants details, suggest running `/engram` for the full audit.
