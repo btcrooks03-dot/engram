@@ -49,13 +49,30 @@ Most users don't know any of this. Their memory silently degrades and Claude get
 
 ## Install
 
+### Quick Install (two commands)
+
 ```bash
-claude plugin add github:btcrooks03-dot/engram
+# 1. Add the engram marketplace
+claude plugin marketplace add github:btcrooks03-dot/engram
+
+# 2. Install the plugin
+claude plugin install engram@engram
 ```
 
-Restart Claude Code after install so the MCP server registers.
+### From Inside Claude Code
 
-Then run `/engram-setup` to configure everything interactively.
+If you're already in a Claude Code session, run these in your terminal (prefix with `!`):
+
+```
+! claude plugin marketplace add github:btcrooks03-dot/engram
+! claude plugin install engram@engram
+```
+
+Then type `/reload-plugins` to load engram into the current session.
+
+### After Install
+
+Run `/engram-setup` to configure everything interactively.
 
 ## Getting Started
 
