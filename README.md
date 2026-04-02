@@ -1,6 +1,6 @@
 # Engram v3
 
-Elite memory optimization for [Claude Code](https://claude.ai/code). MCP server + 10 skills + proactive hooks for auditing, optimizing, generating, and managing your auto-memory and CLAUDE.md files.
+Elite memory optimization for [Claude Code](https://claude.ai/code). MCP server + 11 skills + 25 MCP tools + proactive hooks for auditing, optimizing, generating, and managing your auto-memory and CLAUDE.md files.
 
 ## What Changed in v3
 
@@ -34,6 +34,22 @@ claude plugin add github:btcrooks03-dot/engram
 
 Restart Claude Code after install so the MCP server registers.
 
+Then run `/engram-setup` to configure everything interactively.
+
+## Getting Started
+
+Run `/engram-setup`. It walks you through everything:
+
+1. Detects what's already configured
+2. Lets you pick a memory template for your role or workflow
+3. Guides you through filling in each memory file
+4. Optionally connects you to a team's shared memory
+5. Enables real-time hooks for write validation
+
+Every step is skippable. Takes 2-5 minutes for a full setup, under 30 seconds if you just want the defaults.
+
+Already have memory set up? Run `/engram` for a quick audit instead.
+
 ### Optional: Enable Hooks
 
 Add to your Claude Code settings (`~/.claude/settings.json`):
@@ -54,6 +70,29 @@ Add to your Claude Code settings (`~/.claude/settings.json`):
 This warns you in real-time when a memory write approaches caps, has weak descriptions, or creates orphan files.
 
 ## Commands
+
+### `/engram-setup` — First-Time Setup
+
+Interactive onboarding for new users. Choose a template, configure team access, enable hooks. Works for beginners and power users.
+
+```
+Engram Setup
+════════════
+Welcome! This will walk you through setting up memory optimization
+for Claude Code. Each step is optional — skip anything you don't need.
+
+Environment Check:
+  Memory:     No memory files yet
+  Hooks:      Not configured
+  Team:       Not configured
+
+Step 2 of 6: Choose a template
+  developer        Developer starter set
+  manager          Manager starter set
+  ...
+
+Pick a template by name, or type 'skip' to move on.
+```
 
 ### `/engram` — Fast Audit
 
@@ -166,9 +205,25 @@ Engram Memory Changelog
   2024-03-20  profile      (all files)          Loaded "debugging" profile
 ```
 
+## Team & Org Features
+
+Engram supports shared memory across teams. This is useful when multiple people work on the same codebase and want consistent context — coding standards, project decisions, onboarding docs.
+
+### Templates
+
+Pre-built memory layouts for specific roles, domains, or workflows. Run `/engram-setup` to browse and apply them, or call `engram_list_templates` and `engram_apply_template` directly. Templates provide structure and prompts, not pre-filled content — you always fill in the details yourself.
+
+### Shared Memory
+
+Point your team at a shared directory (a git repo works well) containing memory files that everyone can access. Configure with `/engram-setup` or `engram_team_config`. Shared memories appear alongside personal ones in `/engram-stats` and audits.
+
+### Team Health
+
+When team config is active, `/engram-stats` shows a Team Health section: shared file quality scores, contributor activity (from git history), and gaps in shared knowledge. Powered by `engram_team_health` and `engram_scan_shared`.
+
 ## MCP Server Tools
 
-22 tools providing real computation, persistence, pattern learning, and cross-project awareness:
+25 tools providing real computation, persistence, pattern learning, and cross-project awareness:
 
 | Tool | Purpose |
 |------|---------|
@@ -198,6 +253,13 @@ Engram Memory Changelog
 | `engram_log_operation` | Record a memory operation |
 | `engram_get_changelog` | Retrieve operation history |
 | `engram_memory_git_log` | Git-based memory drift tracking |
+| **Templates** | |
+| `engram_list_templates` | List available memory templates by category |
+| `engram_apply_template` | Apply a template — returns file structures for user confirmation |
+| **Team** | |
+| `engram_team_config` | Get or set team configuration for shared memory |
+| `engram_scan_shared` | Scan shared memory directory with effectiveness scores |
+| `engram_team_health` | Analyze team memory health, contributor activity, and gaps |
 | **Learning** | |
 | `engram_log_session` | Log conversation topics for pattern learning |
 | `engram_session_coverage` | Analyze which recurring topics lack memory coverage |
@@ -218,7 +280,7 @@ Hooks output warnings to stderr only when issues are found. Silent when everythi
 ```
 engram/
   .mcp.json                    — MCP server registration
-  src/server.ts                — TypeScript MCP server (20 tools)
+  src/server.ts                — TypeScript MCP server (25 tools)
   dist/server.js               — Compiled server
   hooks/
     post-memory-write.sh       — Post-write validation hook
@@ -234,6 +296,7 @@ engram/
     engram-profiles/           — Memory profiles
     engram-init/               — Bootstrap/onboarding
     engram-log/                — Changelog viewer
+    engram-setup/              — First-time setup (onboarding)
 ```
 
 ## What It Detects
