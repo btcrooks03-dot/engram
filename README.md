@@ -1,21 +1,42 @@
-# Engram v3
+# Engram v4
 
-Elite memory optimization for [Claude Code](https://claude.ai/code). MCP server + 11 skills + 25 MCP tools + proactive hooks for auditing, optimizing, generating, and managing your auto-memory and CLAUDE.md files.
+Memory optimization for [Claude Code](https://claude.ai/code). MCP server + 11 skills + 27 MCP tools + proactive hooks. Audit, optimize, and manage memory across individuals, teams, and orgs.
 
-## What Changed in v3
+## What It Does (Plain English)
 
-- **Deterministic derivable content detection** — MCP tool scans memory for file paths, CLI commands, function names, and config values, then checks the codebase. No more LLM guesswork.
-- **Relevance simulation with confidence scoring** — bigram + phrase matching predicts which memories get selected, with high/medium/low confidence indicators per file
-- **Phrase-aware description generator** — extracts bigrams/trigrams, uses type-aware templates to generate purpose-oriented descriptions (not keyword soup)
-- **Conversation pattern learning** — logs session topics over time, analyzes which recurring topics aren't covered by memory. The highest-signal suggestion source: you literally needed this context repeatedly.
-- **Smart merge generator** — produces deduplicated merged files server-side, ready to apply
-- **Per-file effectiveness scoring** — 0-100 score based on description quality, freshness, uniqueness, density, and type
-- **Fast/deep audit split** — `/engram` is now MCP-only (5 seconds, deterministic), `/engram-deep` adds full codebase scanning
-- **Bootstrap/onboarding** — `/engram-init` scans your project and proposes starter memories with guided prompts
-- **Memory changelog** — persistent log of all memory operations across conversations
-- **Proactive hooks** — shell scripts for post-write validation and conversation-start health checks
+Every time you open Claude Code, it starts mostly fresh. It might pick up a few saved memories, but most users never set those up properly. So Claude asks the same questions, makes the same mistakes, and doesn't know anything about you, your team, or your company.
 
-## Why It Matters
+**Engram fixes this.** It gives you:
+
+- **Templates** so you don't start from zero. Pick your role (developer, manager, data scientist) or your industry (reinsurance, consulting) and answer a few guided questions. Done.
+- **Shared memory** so your whole team benefits. Teach Claude something once (your company's terminology, compliance rules, tool locations) and everyone gets it.
+- **Audits** that tell you when your memory is broken, stale, or missing important things.
+- **Health dashboards** so team leads can see who's getting value from Claude and who's struggling.
+
+The goal: **turn Claude from a smart stranger into a colleague who actually knows your organization.**
+
+## Who Is This For
+
+| User | What They Get |
+|------|--------------|
+| **Individual developer** | Claude remembers your stack, preferences, and past corrections across every conversation |
+| **Non-technical user** | Run `/engram-setup`, answer questions in plain English, never touch a config file |
+| **Team member** | Shared memory means you inherit company knowledge on day one |
+| **Team lead / admin** | Visibility into who has healthy memory, common gaps, and shared knowledge coverage |
+| **Company rolling out Claude Code** | Templates + shared memory = consistent quality across all users without training each person |
+
+### Example: Reinsurance Company
+
+An underwriter runs `/engram-setup`, picks the **Reinsurance** template, answers prompts about their role, compliance frameworks, and treaty programs. Now every conversation with Claude knows:
+
+- They write E&S property quotes, not general insurance
+- Incline's preferred treaty language and where it lives
+- To use AM Best ratings, not S&P (a correction saved as feedback memory)
+- That "the portal" means a specific submission system, not a generic term
+
+Meanwhile, the ops team puts shared knowledge in a team directory: company glossary, compliance rules, standard workflows. Every user's Claude loads those shared memories automatically. Update once, everyone benefits.
+
+## Why It Matters (Technical)
 
 Claude Code's memory system has hidden constraints:
 
@@ -24,7 +45,7 @@ Claude Code's memory system has hidden constraints:
 - **Top 5 relevance** — only 5 memories selected per conversation via the `description` field (40-100 chars, specific and searchable)
 - **Type-based filtering** — `type` frontmatter is parsed, not decorative
 
-Engram makes this system observable, optimizable, and proactive.
+Most users don't know any of this. Their memory silently degrades and Claude gets less helpful over time without anyone noticing. Engram makes this system observable, optimizable, and proactive.
 
 ## Install
 
@@ -207,23 +228,50 @@ Engram Memory Changelog
 
 ## Team & Org Features
 
-Engram supports shared memory across teams. This is useful when multiple people work on the same codebase and want consistent context — coding standards, project decisions, onboarding docs.
+When multiple people in your organization use Claude Code, engram makes sure they aren't all teaching Claude the same things independently.
 
-### Templates
+### Templates (7 built-in)
 
-Pre-built memory layouts for specific roles, domains, or workflows. Run `/engram-setup` to browse and apply them, or call `engram_list_templates` and `engram_apply_template` directly. Templates provide structure and prompts, not pre-filled content — you always fill in the details yourself.
+Pick a template during `/engram-setup` and answer guided prompts. No markdown or config files to understand.
+
+| Template | For | What It Sets Up |
+|----------|-----|----------------|
+| `solo-developer` | Individual devs | Role, coding preferences, project context |
+| `team-member` | Someone on a team | Role + team context, shared conventions, team resources |
+| `engineering-manager` | Managers | Role + reports, review preferences, team priorities, dashboards |
+| `data-scientist` | Data/ML folks | Role + domain, experiment preferences, dataset references |
+| `reinsurance` | Insurance/reinsurance orgs | Role, compliance rules, treaty/program context, industry tools |
+| `consulting` | Consulting firms | Role + clients, communication preferences, active engagements, client portals |
+| `custom` | Anyone | Minimal starter — just user + feedback memories |
+
+Create your own templates in `~/.claude/plugins/data/engram/custom-templates/`.
 
 ### Shared Memory
 
-Point your team at a shared directory (a git repo works well) containing memory files that everyone can access. Configure with `/engram-setup` or `engram_team_config`. Shared memories appear alongside personal ones in `/engram-stats` and audits.
+The problem: if 15 people use Claude Code, each one independently teaches Claude about your company's tools, terminology, and rules. That's 15x the wasted effort, with inconsistent results.
 
-### Team Health
+The fix: point everyone at a shared directory (a git repo works well):
 
-When team config is active, `/engram-stats` shows a Team Health section: shared file quality scores, contributor activity (from git history), and gaps in shared knowledge. Powered by `engram_team_health` and `engram_scan_shared`.
+1. Someone creates shared memory files — company glossary, compliance rules, tool references
+2. Each user runs `/engram-setup` and connects to the shared directory
+3. Every user's Claude automatically loads shared memories alongside their personal ones
+4. Update the shared directory once, everyone benefits
+
+Shared memory supports **read-only** (most users) and **read-write** (admins who maintain it) modes.
+
+### Team Health Dashboard
+
+When team config is active, `/engram-stats` shows:
+
+- **Shared memory quality** — effectiveness scores for each shared file
+- **Contributor activity** — who's maintaining shared memory, when they last contributed
+- **Coverage gaps** — recurring topics across the team that no shared memory covers
+
+This gives team leads visibility into whether Claude Code adoption is actually working across the org.
 
 ## MCP Server Tools
 
-25 tools providing real computation, persistence, pattern learning, and cross-project awareness:
+27 tools providing real computation, persistence, pattern learning, and cross-project awareness:
 
 | Tool | Purpose |
 |------|---------|
@@ -280,23 +328,39 @@ Hooks output warnings to stderr only when issues are found. Silent when everythi
 ```
 engram/
   .mcp.json                    — MCP server registration
-  src/server.ts                — TypeScript MCP server (25 tools)
-  dist/server.js               — Compiled server
+  src/
+    server.ts                  — MCP tool registrations (slim orchestrator)
+    constants.ts               — Shared constants and config
+    types.ts                   — All TypeScript interfaces
+    helpers.ts                 — File I/O, frontmatter parsing
+    scanning.ts                — Memory directory scanning
+    analysis.ts                — Similarity, effectiveness, relevance scoring
+    generation.ts              — Description generation, merge, suggestions, bootstrap
+    profiles.ts                — Named memory profile CRUD
+    history.ts                 — Audit history, changelog, change tracking
+    learning.ts                — Session logging, coverage analysis
+    git.ts                     — Git log/diff for memory directories
+    templates.ts               — Org template system (7 built-in + custom)
+    shared.ts                  — Shared/team memory layer
+    __tests__/                 — 112 vitest tests across 8 files
+  templates/                   — Built-in template JSON files
   hooks/
     post-memory-write.sh       — Post-write validation hook
     conversation-start.sh      — Conversation-start health hook
+  scripts/
+    postinstall.js             — Auto-configures hooks on install
   skills/
-    engram/                    — Fast audit (MCP-only)
+    engram-setup/              — First-time setup (start here)
+    engram/                    — Fast audit
     engram-deep/               — Deep audit (+ codebase scan)
     engram-optimize/           — Interactive optimizer
-    engram-health/             — Quick validation (11 checks)
-    engram-stats/              — Dashboard
+    engram-health/             — Quick validation
+    engram-stats/              — Dashboard + team health
     engram-suggest/            — Generative suggestions
     engram-claudemd/           — CLAUDE.md audit
     engram-profiles/           — Memory profiles
     engram-init/               — Bootstrap/onboarding
     engram-log/                — Changelog viewer
-    engram-setup/              — First-time setup (onboarding)
 ```
 
 ## What It Detects
