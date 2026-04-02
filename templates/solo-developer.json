@@ -1,0 +1,48 @@
+{
+  "id": "solo-developer",
+  "name": "Solo Developer",
+  "description": "Memory structure for individual developers working on personal or solo projects. Covers your role, coding preferences, and project context.",
+  "category": "role",
+  "memories": [
+    {
+      "filename": "user_role.md",
+      "type": "user",
+      "name": "User Role",
+      "description": "Who you are, your technical background, and what you typically build",
+      "content_prompts": [
+        "What is your name and primary role (e.g., full-stack dev, backend engineer, mobile dev)?",
+        "What languages and frameworks do you use most often?",
+        "What kind of projects do you typically work on (web apps, CLI tools, libraries, etc.)?",
+        "What is your experience level and any specializations?"
+      ],
+      "example_content": "---\ntype: user\nname: User Role\ndescription: Background and technical identity for a solo developer\n---\n\n- Name: Jane Smith, full-stack developer\n- Primary stack: TypeScript, React, Node.js, PostgreSQL\n- Typically builds SaaS products and developer tools\n- 8 years experience, specializes in performance optimization"
+    },
+    {
+      "filename": "coding_preferences.md",
+      "type": "feedback",
+      "name": "Coding Preferences",
+      "description": "How you like code written — style, patterns, and conventions you follow",
+      "content_prompts": [
+        "Do you prefer functional or object-oriented patterns? Any specific design patterns you favor?",
+        "What are your naming conventions (camelCase, snake_case, etc.) and file organization preferences?",
+        "How do you handle errors — throw exceptions, return Result types, error codes?",
+        "What testing approach do you prefer (TDD, write tests after, specific frameworks)?",
+        "Any code style rules that matter to you (line length, imports ordering, comments style)?"
+      ],
+      "example_content": "---\ntype: feedback\nname: Coding Preferences\ndescription: Code style, patterns, and conventions for consistent AI-generated code\n---\n\n- Prefer functional patterns with immutable data where practical\n- Use camelCase for variables/functions, PascalCase for types/classes\n- Error handling: prefer Result<T, E> pattern over thrown exceptions\n- Always write unit tests; use vitest for TS projects\n- Keep functions under 30 lines; extract helpers aggressively"
+    },
+    {
+      "filename": "project_context.md",
+      "type": "project",
+      "name": "Current Project",
+      "description": "What you are actively building — goals, architecture, and current status",
+      "content_prompts": [
+        "What is the project name and its one-line purpose?",
+        "What is the tech stack and high-level architecture?",
+        "What are the current priorities or milestones you are working toward?",
+        "Are there any known technical debt items or constraints to be aware of?"
+      ],
+      "example_content": "---\ntype: project\nname: Current Project\ndescription: Active project context including goals, stack, and current priorities\n---\n\n- Project: TaskFlow — a CLI task management tool\n- Stack: Rust + clap for CLI, SQLite for storage\n- Current milestone: v0.3 release with recurring tasks\n- Tech debt: migration system needs refactor before adding more schema changes"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "custom",
+  "name": "Custom Starter",
+  "description": "Minimal memory template with just the essentials. Start here and add more memory files as you discover what Claude needs to know about you.",
+  "category": "workflow",
+  "memories": [
+    {
+      "filename": "user_role.md",
+      "type": "user",
+      "name": "User Role",
+      "description": "Who you are and what you do — the foundation for personalized assistance",
+      "content_prompts": [
+        "What is your name and primary role or job title?",
+        "What do you spend most of your time doing in this project or workspace?",
+        "Is there anything unique about your situation that would help Claude assist you better?"
+      ],
+      "example_content": "---\ntype: user\nname: User Role\ndescription: Basic identity and role context for personalized Claude assistance\n---\n\n- Name: [Your name], [your role]\n- Primary work: [what you do day-to-day]\n- Context: [anything Claude should always keep in mind]"
+    },
+    {
+      "filename": "preferences.md",
+      "type": "feedback",
+      "name": "Preferences",
+      "description": "How you like things done — communication style, output format, and workflow habits",
+      "content_prompts": [
+        "How do you prefer Claude to communicate with you (concise vs. detailed, formal vs. casual)?",
+        "Are there output formats you prefer (bullet points, prose, code-first, etc.)?",
+        "What should Claude always do or never do when helping you?"
+      ],
+      "example_content": "---\ntype: feedback\nname: Preferences\ndescription: Communication and output preferences for consistent Claude behavior\n---\n\n- Style: [concise/detailed], [formal/casual]\n- Format: [bullets/prose/code-first]\n- Always: [things Claude should always do]\n- Never: [things Claude should never do]"
+    }
+  ]
+}

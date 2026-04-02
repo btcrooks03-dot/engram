@@ -1,0 +1,61 @@
+{
+  "id": "team-member",
+  "name": "Team Member",
+  "description": "Memory structure for developers working on a team. Covers your role within the team, shared coding conventions, project goals, and team resources.",
+  "category": "role",
+  "memories": [
+    {
+      "filename": "user_role.md",
+      "type": "user",
+      "name": "User Role",
+      "description": "Your identity, role on the team, and areas of ownership",
+      "content_prompts": [
+        "What is your name, title, and which team are you on?",
+        "What areas of the codebase or product do you own or primarily contribute to?",
+        "Who do you report to and who are your closest collaborators?",
+        "What is your typical workflow (PR reviews, pair programming, async communication)?"
+      ],
+      "example_content": "---\ntype: user\nname: User Role\ndescription: Team member identity, ownership areas, and collaboration patterns\n---\n\n- Name: Alex Chen, Senior Backend Engineer on the Payments team\n- Owns: payment processing pipeline, webhook delivery system\n- Reports to: Sarah (Eng Manager), works closely with Maria (frontend) and Dev (SRE)\n- Workflow: async-first, PRs require 1 approval, weekly syncs on Tuesdays"
+    },
+    {
+      "filename": "team_conventions.md",
+      "type": "feedback",
+      "name": "Team Conventions",
+      "description": "Shared coding standards, PR process, and team-specific patterns everyone follows",
+      "content_prompts": [
+        "What coding standards does your team enforce (linting rules, formatting, naming)?",
+        "What is your PR/code review process and what do reviewers look for?",
+        "Are there team-specific architectural patterns or abstractions you use?",
+        "What branching strategy does the team use (trunk-based, gitflow, etc.)?",
+        "Are there any team-specific testing requirements (coverage thresholds, integration tests)?"
+      ],
+      "example_content": "---\ntype: feedback\nname: Team Conventions\ndescription: Shared standards and processes the team follows for consistent code\n---\n\n- Linting: ESLint with team config, Prettier with 100 char line width\n- PRs: must include tests, description template required, 1 approval minimum\n- Architecture: repository pattern for data access, domain events for cross-service communication\n- Branching: trunk-based with short-lived feature branches, squash merge\n- Testing: 80% coverage minimum, integration tests for all API endpoints"
+    },
+    {
+      "filename": "project_goals.md",
+      "type": "project",
+      "name": "Project Goals",
+      "description": "Current team objectives, sprint goals, and technical roadmap items",
+      "content_prompts": [
+        "What is the team's current quarterly objective or OKR?",
+        "What are the active sprint or iteration goals?",
+        "Are there any upcoming deadlines or launches the team is working toward?",
+        "What technical initiatives are in progress (migrations, refactors, new features)?"
+      ],
+      "example_content": "---\ntype: project\nname: Project Goals\ndescription: Team objectives, active sprint goals, and upcoming milestones\n---\n\n- Q1 OKR: Reduce payment failure rate from 3.2% to under 1%\n- Sprint goal: Implement retry logic with exponential backoff for failed charges\n- Upcoming: PCI compliance audit in March — all logging changes must be done by Feb 28\n- Tech initiative: migrating from REST webhooks to event-driven architecture"
+    },
+    {
+      "filename": "team_resources.md",
+      "type": "reference",
+      "name": "Team Resources",
+      "description": "Links to team docs, dashboards, runbooks, and communication channels",
+      "content_prompts": [
+        "Where does the team keep its documentation (wiki, Notion, Confluence)?",
+        "What monitoring dashboards or alerting tools does the team use?",
+        "Where are the team's runbooks for incident response?",
+        "What communication channels does the team use (Slack channels, email lists)?"
+      ],
+      "example_content": "---\ntype: reference\nname: Team Resources\ndescription: Links to team documentation, dashboards, runbooks, and communication channels\n---\n\n- Docs: Notion workspace at notion.so/payments-team\n- Dashboards: Grafana payment-health dashboard, Datadog APM\n- Runbooks: GitHub wiki in payments-service repo\n- Channels: #payments-eng (Slack), payments-eng@company.com"
+    }
+  ]
+}

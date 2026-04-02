@@ -1,0 +1,63 @@
+{
+  "id": "reinsurance",
+  "name": "Reinsurance Professional",
+  "description": "Memory structure for reinsurance industry professionals. Covers your role in the reinsurance value chain, compliance requirements, treaty/program context, and industry-specific tools.",
+  "category": "domain",
+  "memories": [
+    {
+      "filename": "user_role.md",
+      "type": "user",
+      "name": "Reinsurance Role",
+      "description": "Your position in the reinsurance value chain, lines of business, and key relationships",
+      "content_prompts": [
+        "What is your name, title, and organization (carrier, broker, MGA, cedent)?",
+        "What lines of business do you focus on (property cat, casualty, specialty, life)?",
+        "Where do you sit in the value chain (underwriting, actuarial, claims, broking)?",
+        "Who are your key counterparties (cedents, retrocessionaires, brokers)?"
+      ],
+      "example_content": "---\ntype: user\nname: Reinsurance Role\ndescription: Position in the reinsurance market, lines of business, and key counterparties\n---\n\n- Name: Michael Torres, VP Treaty Underwriting at Helvetia Re\n- Lines: property catastrophe, per-risk property, casualty clash\n- Role: price and structure treaty placements, manage portfolio \n- Key relationships: 12 cedents via Guy Carpenter and Aon, 3 retro providers"
+    },
+    {
+      "filename": "compliance_requirements.md",
+      "type": "feedback",
+      "name": "Compliance Requirements",
+      "description": "Regulatory constraints, reporting standards, and approval workflows that govern your work",
+      "content_prompts": [
+        "What regulatory frameworks govern your work (Solvency II, NAIC, Bermuda BMA, Lloyd's)?",
+        "What reporting standards do you follow (IFRS 17, US GAAP, SAP)?",
+        "What are the key compliance checkpoints in your treaty placement or claims workflow?",
+        "Are there specific documentation or audit trail requirements for your jurisdiction?",
+        "What approval chains exist for binding authority, limit deployment, or reserve changes?"
+      ],
+      "example_content": "---\ntype: feedback\nname: Compliance Requirements\ndescription: Regulatory frameworks, reporting standards, and approval workflows\n---\n\n- Regulated under Solvency II (EU) and Swiss FINMA\n- Reporting: IFRS 17 for group, local GAAP for Swiss entity\n- Treaty workflow: pricing sign-off (actuarial), terms approval (CUO), capacity check (CFO for >$50M)\n- Audit: all treaty terms must be documented in placement file within 30 days of binding\n- Sanctions screening required on all new cedent relationships"
+    },
+    {
+      "filename": "treaty_context.md",
+      "type": "project",
+      "name": "Treaty and Program Context",
+      "description": "Active treaty programs, renewal pipeline, and portfolio composition you manage",
+      "content_prompts": [
+        "What is your current portfolio size (GWP, number of treaties, key programs)?",
+        "What renewals are upcoming and what are the strategic priorities for them?",
+        "Are there any new programs or cedent relationships you are developing?",
+        "What is the current loss experience or reserve position on your key programs?",
+        "What cat model outputs or pricing metrics are most relevant to your book?"
+      ],
+      "example_content": "---\ntype: project\nname: Treaty and Program Context\ndescription: Active treaties, renewal pipeline, and portfolio priorities\n---\n\n- Portfolio: $320M GWP across 45 treaties, 65% property cat / 35% casualty\n- Upcoming: Jan 1 renewals (18 treaties), targeting 5% rate increase on prop cat\n- New business: exploring Southeast Asia cedents via Gallagher Re\n- Loss experience: 2024 Hurricane season — $45M incurred across 3 programs\n- Key metrics: RoL, technical price ratio, PML at 250yr RP (RMS and AIR)"
+    },
+    {
+      "filename": "industry_tools.md",
+      "type": "reference",
+      "name": "Industry Tools and Platforms",
+      "description": "Reinsurance-specific software, cat modeling platforms, and data systems you use",
+      "content_prompts": [
+        "What cat modeling platforms do you use (RMS, AIR, Verisk, in-house)?",
+        "What underwriting or policy admin systems does your organization run?",
+        "What data platforms or actuarial tools support your analysis (Arius, ResQ, Excel models)?",
+        "What market platforms do you interact with (Riskonnect, Sequel, PPL, ACORD messaging)?",
+        "Where do you access industry data (PCS, Swiss Re sigma, AM Best)?"
+      ],
+      "example_content": "---\ntype: reference\nname: Industry Tools and Platforms\ndescription: Cat models, underwriting systems, and market platforms used in reinsurance work\n---\n\n- Cat models: RMS RiskLink 23.0 (primary), AIR Touchstone (validation), custom blend model\n- UW system: in-house treaty management platform (TreatyHub) for pricing and tracking\n- Actuarial: Arius for reserving, custom Python models for experience rating\n- Market: Riskonnect for placement tracking, ACORD XML for bordereaux exchange\n- Data: PCS loss bulletins, Swiss Re sigma, AM Best for cedent ratings"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "id": "engineering-manager",
+  "name": "Engineering Manager",
+  "description": "Memory structure for engineering managers. Covers your role and reports, review preferences, team priorities, and dashboards you track.",
+  "category": "role",
+  "memories": [
+    {
+      "filename": "user_role.md",
+      "type": "user",
+      "name": "Manager Role",
+      "description": "Your management scope, direct reports, and leadership responsibilities",
+      "content_prompts": [
+        "What is your name, title, and which team(s) do you manage?",
+        "Who are your direct reports (names, roles, and seniority levels)?",
+        "What is your management style and how do you run 1:1s?",
+        "What organizational layer are you in (director reports to VP, etc.) and who are your peer managers?"
+      ],
+      "example_content": "---\ntype: user\nname: Manager Role\ndescription: Management scope, direct reports, and leadership context\n---\n\n- Name: Sarah Kim, Engineering Manager — Payments Team (8 engineers)\n- Reports: Alex (Sr BE), Maria (Sr FE), Dev (SRE), 3 mid-level, 2 junior\n- Style: servant leadership, weekly 1:1s (30min), skip-levels monthly\n- Reports to VP Eng (James), peers with Platform EM (Carlos) and Growth EM (Priya)"
+    },
+    {
+      "filename": "review_preferences.md",
+      "type": "feedback",
+      "name": "Review Preferences",
+      "description": "How you evaluate code, proposals, and documentation when reviewing",
+      "content_prompts": [
+        "What do you prioritize when reviewing technical proposals (feasibility, timeline, risk)?",
+        "What level of detail do you expect in design docs and ADRs?",
+        "How do you prefer status updates and progress reports to be structured?",
+        "What writing tone do you use for team communications vs. stakeholder updates?"
+      ],
+      "example_content": "---\ntype: feedback\nname: Review Preferences\ndescription: How I evaluate technical work, proposals, and team communications\n---\n\n- Proposals: focus on risk assessment and rollback plan first, then timeline\n- Design docs: must include alternatives considered and decision rationale\n- Status updates: bullet points, lead with blockers, include metrics where possible\n- Stakeholder comms: concise, no jargon, always include business impact"
+    },
+    {
+      "filename": "team_priorities.md",
+      "type": "project",
+      "name": "Team Priorities",
+      "description": "Current quarter objectives, hiring plans, and active initiatives across your team",
+      "content_prompts": [
+        "What are your team's OKRs or quarterly goals?",
+        "Are there any hiring or team composition changes planned?",
+        "What are the biggest risks or blockers your team is facing?",
+        "What cross-team dependencies or initiatives are you coordinating?"
+      ],
+      "example_content": "---\ntype: project\nname: Team Priorities\ndescription: Quarterly objectives, staffing plans, and active cross-team initiatives\n---\n\n- Q1 OKRs: reduce payment failures, launch subscription billing, improve on-call\n- Hiring: backfill for departing SRE, open headcount for staff engineer\n- Risks: PCI audit timeline tight, dependency on Platform team for infra migration\n- Cross-team: coordinating with Growth on checkout redesign, shared API contract"
+    },
+    {
+      "filename": "dashboards.md",
+      "type": "reference",
+      "name": "Dashboards and Metrics",
+      "description": "Key metrics you track, dashboards you check, and reporting tools you use",
+      "content_prompts": [
+        "What are the top 3-5 metrics you track for your team's health and performance?",
+        "What dashboards do you check daily or weekly?",
+        "What tools do you use for project tracking (Jira, Linear, Shortcut)?",
+        "Where do you report team metrics to leadership?"
+      ],
+      "example_content": "---\ntype: reference\nname: Dashboards and Metrics\ndescription: Key metrics, dashboards, and reporting tools for team health monitoring\n---\n\n- Key metrics: deployment frequency, MTTR, payment failure rate, sprint velocity\n- Daily: Grafana payment-health, PagerDuty on-call overview\n- Weekly: Linear sprint board, GitHub PR cycle time report\n- Leadership reporting: monthly eng metrics deck in Google Slides"
+    }
+  ]
+}

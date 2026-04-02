@@ -1,0 +1,63 @@
+{
+  "id": "consulting",
+  "name": "Consultant",
+  "description": "Memory structure for consulting professionals. Covers your role and client portfolio, communication standards, active engagements, and client portal references.",
+  "category": "workflow",
+  "memories": [
+    {
+      "filename": "user_role.md",
+      "type": "user",
+      "name": "Consulting Role",
+      "description": "Your position, practice area, and client relationship responsibilities",
+      "content_prompts": [
+        "What is your name, title, and which firm or practice area are you in?",
+        "What is your typical engagement type (strategy, implementation, advisory, managed services)?",
+        "What industries or verticals do you serve?",
+        "What is your role in engagements (lead, SME, delivery manager, analyst)?"
+      ],
+      "example_content": "---\ntype: user\nname: Consulting Role\ndescription: Consulting identity, practice area, and engagement role\n---\n\n- Name: Rachel Park, Senior Manager — Digital Transformation practice at Deloitte\n- Engagement types: technology strategy, system implementation, operating model design\n- Verticals: financial services, insurance, healthcare\n- Role: engagement lead for mid-market clients ($5-15M engagements)"
+    },
+    {
+      "filename": "client_communication.md",
+      "type": "feedback",
+      "name": "Client Communication Standards",
+      "description": "How you write for clients — tone, formatting, deliverable standards, and email conventions",
+      "content_prompts": [
+        "What tone and formality level do you use in client-facing writing?",
+        "What deliverable formats does your firm use (slide decks, memos, status reports)?",
+        "Are there firm-specific templates or branding guidelines for deliverables?",
+        "How do you structure status updates and steering committee presentations?",
+        "What are your email conventions for client communication (subject lines, sign-offs, CC rules)?"
+      ],
+      "example_content": "---\ntype: feedback\nname: Client Communication Standards\ndescription: Tone, formatting, and deliverable standards for client-facing work\n---\n\n- Tone: professional but approachable, avoid jargon unless client uses it first\n- Deliverables: PowerPoint for exec presentations, Word for detailed analysis, Excel for models\n- Branding: firm template required for all external docs, use client logo on joint deliverables\n- Status reports: RAG status on workstreams, decisions needed, next 2 weeks lookahead\n- Email: always CC engagement partner, subject format: [Client] - [Topic] - [Action needed/FYI]"
+    },
+    {
+      "filename": "active_engagements.md",
+      "type": "project",
+      "name": "Active Engagements",
+      "description": "Current client engagements, project phases, and key milestones you are managing",
+      "content_prompts": [
+        "What client engagements are you currently staffed on?",
+        "What phase is each engagement in (discovery, design, build, transition)?",
+        "What are the key deliverables and milestones for the next 4-6 weeks?",
+        "Who are the key client stakeholders and what are their priorities?",
+        "Are there any at-risk items or escalations across your engagements?"
+      ],
+      "example_content": "---\ntype: project\nname: Active Engagements\ndescription: Current client engagements, phases, and upcoming milestones\n---\n\n- Acme Insurance (lead): system selection phase, vendor demos next 3 weeks, recommendation due Apr 15\n- GlobalBank (SME): data migration workstream, 60% complete, go-live June 1\n- HealthCo (advisory): operating model design, steering committee presentation Mar 28\n- At risk: GlobalBank migration — data quality issues may push timeline by 2 weeks"
+    },
+    {
+      "filename": "client_portals.md",
+      "type": "reference",
+      "name": "Client Portals and Tools",
+      "description": "Links to client project spaces, shared drives, time tracking, and firm tools",
+      "content_prompts": [
+        "What project management or collaboration tools do you use with clients (SharePoint, Teams, Confluence)?",
+        "Where are engagement artifacts stored (shared drives, document management systems)?",
+        "What time tracking and billing system does your firm use?",
+        "What internal knowledge bases or past engagement libraries can you reference?",
+        "Are there any client-specific VPN, access, or security requirements?"
+      ],
+      "example_content": "---\ntype: reference\nname: Client Portals and Tools\ndescription: Client collaboration spaces, firm tools, and access details\n---\n\n- Acme: SharePoint site at acme.sharepoint.com/deloitte-engagement, Teams channel\n- GlobalBank: Confluence space (VPN required), Jira board for migration tasks\n- Time tracking: Deloitte TimeTracker, bill weekly by Friday EOD\n- Knowledge: Deloitte Insights portal, past engagements in DKM (Deloitte Knowledge Management)\n- Access: GlobalBank requires hardware token for VPN, HealthCo uses Okta SSO"
+    }
+  ]
+}

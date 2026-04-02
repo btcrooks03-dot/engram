@@ -1,0 +1,49 @@
+{
+  "id": "data-scientist",
+  "name": "Data Scientist",
+  "description": "Memory structure for data scientists and ML engineers. Covers your domain expertise, notebook/experiment preferences, and dataset references.",
+  "category": "domain",
+  "memories": [
+    {
+      "filename": "user_role.md",
+      "type": "user",
+      "name": "Data Science Role",
+      "description": "Your domain expertise, modeling focus areas, and team position",
+      "content_prompts": [
+        "What is your name, title, and what domain do you work in (NLP, computer vision, forecasting, etc.)?",
+        "What ML frameworks and tools are in your daily stack (PyTorch, scikit-learn, pandas, etc.)?",
+        "What kind of models do you typically build or maintain?",
+        "Do you work more on research/experimentation or production ML systems?"
+      ],
+      "example_content": "---\ntype: user\nname: Data Science Role\ndescription: Domain expertise, ML focus areas, and toolchain for a data scientist\n---\n\n- Name: Jordan Lee, Senior Data Scientist — Fraud Detection team\n- Domain: anomaly detection, time-series classification, transaction scoring\n- Stack: Python, PyTorch, scikit-learn, pandas, DVC, MLflow\n- Focus: production ML — models go from notebook to serving pipeline"
+    },
+    {
+      "filename": "experiment_preferences.md",
+      "type": "feedback",
+      "name": "Experiment Preferences",
+      "description": "How you structure notebooks, track experiments, and prefer code to be organized",
+      "content_prompts": [
+        "How do you organize Jupyter notebooks (naming, section structure, documentation level)?",
+        "What experiment tracking system do you use and how do you log runs?",
+        "Do you prefer scripts or notebooks for model training? What about evaluation?",
+        "What reproducibility practices do you follow (random seeds, environment pinning, data versioning)?",
+        "How do you prefer data processing code to be structured (pipeline classes, functional transforms)?"
+      ],
+      "example_content": "---\ntype: feedback\nname: Experiment Preferences\ndescription: Notebook conventions, experiment tracking, and reproducibility practices\n---\n\n- Notebooks: prefix with date (2024-01-15_), always have markdown headers per section\n- Tracking: MLflow for all experiments, log params + metrics + artifacts\n- Training: scripts for production training, notebooks for EDA and prototyping\n- Reproducibility: pin random seeds, use DVC for data versioning, conda env files\n- Data code: prefer functional transforms with clear docstrings over pipeline classes"
+    },
+    {
+      "filename": "datasets.md",
+      "type": "reference",
+      "name": "Datasets and Data Sources",
+      "description": "Key datasets, data warehouses, feature stores, and access patterns you work with",
+      "content_prompts": [
+        "What are the primary datasets you work with (names, locations, rough sizes)?",
+        "Where does your data live (S3, BigQuery, Snowflake, local)?",
+        "Do you use a feature store? If so, what are the key feature groups?",
+        "Are there any data access restrictions or PII handling requirements?",
+        "What data refresh cadences matter for your models (real-time, daily, weekly)?"
+      ],
+      "example_content": "---\ntype: reference\nname: Datasets and Data Sources\ndescription: Key data sources, access patterns, and feature stores for ML work\n---\n\n- Primary: transaction_events (BigQuery, ~2TB, partitioned by date)\n- Features: Feast feature store — user_profile, transaction_velocity, device_fingerprint\n- Access: must use service account for prod data, PII requires approval via JIRA\n- Refresh: transaction features update hourly, user profiles daily at 2am UTC"
+    }
+  ]
+}
