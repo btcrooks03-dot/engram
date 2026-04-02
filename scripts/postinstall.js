@@ -16,18 +16,28 @@ const ENGRAM_HOOKS = {
   PostToolUse: [
     {
       matcher: "Write",
-      command: `${PLUGIN_DIR}/hooks/post-memory-write.sh "$TOOL_INPUT_FILE_PATH"`,
+      hooks: [
+        {
+          type: "command",
+          command: `${PLUGIN_DIR}/hooks/post-memory-write.sh "$TOOL_INPUT_FILE_PATH"`,
+        },
+      ],
     },
     {
       matcher: "Read",
-      command: `${PLUGIN_DIR}/hooks/conversation-start.sh`,
-      runOnce: true,
+      hooks: [
+        {
+          type: "command",
+          command: `${PLUGIN_DIR}/hooks/conversation-start.sh`,
+        },
+      ],
     },
   ],
 };
 
 function isEngramHook(hook) {
-  return typeof hook.command === "string" && hook.command.includes("engram/hooks/");
+  const cmd = hook.command || (hook.hooks && hook.hooks[0] && hook.hooks[0].command) || "";
+  return typeof cmd === "string" && cmd.includes("engram/hooks/");
 }
 
 function run() {
