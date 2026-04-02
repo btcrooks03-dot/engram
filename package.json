@@ -1,8 +1,8 @@
 {
   "name": "engram",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "type": "module",
-  "description": "Elite memory optimization for Claude Code — MCP server with cross-project scanning, audit history, semantic dedup, generative suggestions, CLAUDE.md management, memory profiles, and git integration",
+  "description": "Memory optimization for Claude Code — MCP server with cross-project scanning, org templates, shared team memory, audit history, semantic dedup, generative suggestions, CLAUDE.md management, memory profiles, and git integration",
   "license": "MIT",
   "author": {
     "name": "btcrooks03-dot"
@@ -22,6 +22,7 @@
   "scripts": {
     "build": "tsc",
     "prepare": "tsc",
+    "postinstall": "node scripts/postinstall.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
