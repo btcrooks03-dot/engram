@@ -32,6 +32,21 @@ Call `engram_bootstrap` with the project directory. This scans:
 - Directory structure
 - Existing CLAUDE.md files
 
+**Show what was detected** before presenting suggestions:
+
+```
+Project Scan Results
+═════════════════════
+Language:     [detected language(s)]
+Framework:    [detected framework(s)]
+Package Mgr:  [npm/pip/cargo/etc.]
+Git Remote:   [origin URL or "none"]
+Structure:    [key directories found]
+CLAUDE.md:    [found at scope(s) / not found]
+```
+
+If the detection looks wrong (e.g., misidentified language), the user can correct it before proceeding. Ask: "Does this look right? If not, let me know what to adjust."
+
 ### Step 3: Present Suggestions
 
 For each suggestion from the bootstrap scan, present interactively:

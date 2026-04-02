@@ -43,7 +43,7 @@ If the user just runs `/engram-profiles` with no arguments, show the list and ex
 **For LIST:**
 1. Call MCP tool `engram_profile_list` with the memory directory
 2. Display profiles with name, creation date, and file count
-3. Show which profile is currently active (compare files)
+3. Detect active profile: call `engram_profile_diff` for each profile — if a profile has zero differences (all files match), it's the active one. If no profile matches exactly, show "no exact match (current state has been modified since last profile load)"
 
 **For SAVE:**
 1. Confirm the profile name with the user

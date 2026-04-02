@@ -56,8 +56,8 @@ if [[ "$BASENAME" != "MEMORY.md" && "$BASENAME" == *.md ]]; then
     # Check description length
     DESC=$(grep "^description:" "$FILE_PATH" | head -1 | sed 's/^description:\s*//')
     DESC_LEN=${#DESC}
-    if [[ $DESC_LEN -lt 30 ]]; then
-      echo "ENGRAM WARNING: ${BASENAME} description is only ${DESC_LEN} chars — too short for effective relevance matching" >&2
+    if [[ $DESC_LEN -lt 40 ]]; then
+      echo "ENGRAM WARNING: ${BASENAME} description is only ${DESC_LEN} chars — aim for 40-100 chars for effective relevance matching" >&2
     fi
   fi
 

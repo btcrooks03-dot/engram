@@ -21,7 +21,7 @@ Claude Code's memory system has hidden constraints:
 
 - **200-line cap** on MEMORY.md (silently truncated past this)
 - **25KB size cap** (same)
-- **Top 5 relevance** — only 5 memories selected per conversation via the `description` field
+- **Top 5 relevance** — only 5 memories selected per conversation via the `description` field (40-100 chars, specific and searchable)
 - **Type-based filtering** — `type` frontmatter is parsed, not decorative
 
 Engram makes this system observable, optimizable, and proactive.
@@ -272,6 +272,10 @@ This is the highest-quality signal for `engram_session_coverage` — structured 
 ### Why this matters
 
 Without integration, both plugins are stateless between conversations — Phantom doesn't know what you've learned, Engram doesn't know what workflows you run. Connected, Engram's gap detection actually has data to work with, and Phantom's planner avoids repeating mistakes you've already corrected.
+
+### Without Phantom
+
+Engram works fully without Phantom installed. The only feature that degrades is `engram_session_coverage` (used by `/engram-deep` and `/engram-suggest`), which returns limited or empty data without structured session logs. When this happens, skills gracefully skip the session coverage section and rely on heuristic gap detection instead. No errors, no broken workflows.
 
 ## Dependencies
 

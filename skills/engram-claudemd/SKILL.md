@@ -70,6 +70,11 @@ The MCP server returns files found and issues detected. Supplement with your own
 - Global rules that conflict with project-level rules
 - Instructions that conflict with memory content
 
+When a contradiction is found, propose a resolution:
+- If one rule is more specific, keep the specific one and remove the generic one
+- If they're at different scopes, the project-level rule should win for that project — remove or narrow the global rule
+- If a CLAUDE.md rule contradicts memory content, decide by purpose: deterministic rules belong in CLAUDE.md, contextual information belongs in memory. Propose moving the content to the right system.
+
 ### Step 3: Present Issues
 
 For each issue, present:

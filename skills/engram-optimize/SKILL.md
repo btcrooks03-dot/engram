@@ -12,7 +12,8 @@ You are a memory optimization expert. Walk the user through improving their memo
 - MEMORY.md is capped at **200 lines / 25KB** — content past this is silently truncated
 - Relevance uses a **Sonnet side-query** picking **top 5** memories per conversation
 - The `description` frontmatter field is the **primary signal** for relevance matching
-- Types: `user`, `feedback`, `project`, `reference`
+- Types: `user` (role/expertise), `feedback` (corrections/confirmations — most valuable), `project` (ongoing work/decisions), `reference` (external resource pointers)
+- Descriptions: 40-100 chars, specific and searchable
 
 ## Process
 
@@ -121,3 +122,18 @@ Suggest `/engram-suggest` to find what's missing now that space is freed.
 - **Show MCP data.** Always include similarity scores, effectiveness scores, derivable locations.
 - **One issue at a time.** Don't batch.
 - **Log everything.** Call `engram_log_operation` for every applied change.
+
+## Rollback
+
+If the user regrets a change after applying it:
+- **Single file edits:** Use `git diff` on the memory file to see what changed, then revert with `git checkout -- <file>`.
+- **Multiple changes in one session:** Use `git stash` or `git diff HEAD` to review and selectively revert.
+- **Full rollback:** If a profile was saved before optimizing, load it via `/engram-profiles load <name>`. Otherwise, the `_previous_auto_backup` profile (created on profile loads) may have a recent snapshot.
+- Always remind the user: "You can undo any change with `git checkout -- <file>` before your next commit."
+
+## MCP Tool Failure Handling
+
+If any MCP tool call fails:
+- Continue with results from tools that succeeded.
+- Skip issue categories that depend on the failed tool.
+- Note the failure in the summary: "Skipped [category] — MCP tool unavailable."

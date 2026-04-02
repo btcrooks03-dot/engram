@@ -14,6 +14,26 @@ For the thorough audit with derivable content detection and stale reference scan
 - **MEMORY.md** is capped at **200 lines / 25KB** — silently truncated past these limits
 - **Top 5 relevance** via Sonnet side-query using the `description` frontmatter field
 - **Types**: `user`, `feedback`, `project`, `reference`
+  - `user` — who the user is, their role, expertise, preferences. Helps tailor responses.
+  - `feedback` — corrections and confirmations from the user. Most valuable type — prevents repeating mistakes.
+  - `project` — ongoing work, goals, deadlines, decisions. Decays fastest, needs regular updates.
+  - `reference` — pointers to external resources (dashboards, docs, trackers). Stable and low-maintenance.
+
+## Healthy Benchmarks
+
+A well-optimized memory setup targets:
+- **6-12 memory files**, using 60-120 MEMORY.md lines (30-60% cap)
+- **All 4 types present** — missing `feedback` is the most common and costly gap
+- **Average effectiveness ≥ 70/100** across all files
+- **Descriptions 40-100 chars**, specific and searchable (this is the primary relevance signal)
+- **Zero orphans, zero dead links**
+- **Health score ≥ 80/100**
+
+Type distribution guide (not rigid, but a healthy starting point):
+- 1-2 `user` memories (role, preferences)
+- 2-4 `feedback` memories (corrections, confirmed approaches)
+- 1-3 `project` memories (current work, decisions)
+- 1-2 `reference` memories (external resource pointers)
 
 ## Process
 
@@ -62,6 +82,7 @@ Type Distribution:
 
 Effectiveness (per file):
   [filename.md]     [score]/100  [top issue]
+                    (description: [d] | freshness: [f] | uniqueness: [u] | density: [dn] | type: [t])
   ...
   Average: [avg]/100
 
@@ -99,6 +120,14 @@ Start at 100:
 - Bonus: +5 if all 4 types present
 - Bonus: +5 if avg effectiveness > 70
 Clamp to 0-100.
+
+## MCP Tool Failure Handling
+
+If any MCP tool call fails:
+- **Do not halt the entire audit.** Report results from tools that succeeded.
+- Mark the failed section as `[UNAVAILABLE — tool error]` in the report.
+- At the end, note which tools failed and suggest retrying with `/engram`.
+- Common causes: MCP server not running (suggest restarting Claude Code), memory directory not found.
 
 After the report, suggest:
 - `/engram-deep` for thorough scan (derivable content, stale refs)

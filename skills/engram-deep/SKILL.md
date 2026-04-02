@@ -13,7 +13,8 @@ For a quick MCP-only audit, use `/engram` instead.
 
 - **MEMORY.md** is capped at **200 lines / 25KB** — content past these limits is silently truncated
 - **Top 5 selection** via Sonnet side-query using the `description` frontmatter field
-- **Memory types**: `user`, `feedback`, `project`, `reference`
+- **Memory types**: `user` (role/expertise), `feedback` (corrections/confirmations — most valuable), `project` (ongoing work/decisions), `reference` (external resource pointers)
+- **Descriptions**: 40-100 chars, specific and searchable — primary relevance signal
 
 ## Process
 
@@ -37,12 +38,27 @@ Run these MCP tools in parallel where possible:
 6. `engram_watch_status` — recent file changes
 7. `engram_session_coverage` — analyze which recurring conversation topics are/aren't covered by memory
 
+**Phantom Integration Note:** `engram_session_coverage` provides highest-signal results when the [Phantom](https://github.com/btcrooks03-dot/phantom) plugin is installed, as Phantom workflows log structured session topics. Without Phantom, session coverage analysis may return limited or empty data — this is expected. If session data is empty, skip the Session Coverage section of the report and note: "Session coverage unavailable — install Phantom plugin for conversation pattern tracking, or run `/engram-suggest` for heuristic gap detection."
+
 ### Step 3: Stale Reference Scan (Tool-Assisted)
 
 For each memory file, check if referenced entities still exist:
-- **File paths** mentioned in memory — use Glob to verify they exist
+- **File paths** mentioned in memory — use Glob to verify they exist at the stated path
 - **Function/class names** — use Grep to verify they exist in source code
+- **Config values or CLI commands** — use Grep to verify they appear in package.json, Makefiles, or scripts
 - Note which references are stale and what they pointed to
+
+**Handling partial staleness:**
+- If a file was moved but the function still exists elsewhere → mark as MOVED, suggest updating the path
+- If a function was renamed → mark as RENAMED, suggest updating the reference
+- If both file and function are gone → mark as REMOVED, suggest deleting the reference from memory
+
+**Example stale reference output:**
+```
+  project_notes.md: "./src/auth/middleware.py" — file MOVED to ./src/middleware/auth.py
+  feedback_api.md: "validate_token()" — function RENAMED to verify_token() in ./src/auth.py
+  reference_tools.md: "npm run migrate" — script REMOVED from package.json
+```
 
 ### Step 4: Relevance Simulation
 
@@ -133,3 +149,11 @@ Start at 100:
 - Bonus: +5 if average effectiveness > 70
 
 Clamp to 0-100.
+
+## MCP Tool Failure Handling
+
+If any MCP tool call fails:
+- **Do not halt the audit.** Report results from tools that succeeded.
+- Mark failed sections as `[UNAVAILABLE — tool error]` in the report.
+- Note which tools failed and suggest retrying.
+- If `engram_session_coverage` fails specifically, this likely means no session data exists yet — note this is normal for new setups.

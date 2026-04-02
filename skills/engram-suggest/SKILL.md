@@ -11,7 +11,8 @@ You are a memory strategist. Instead of trimming fat (that's `/engram-optimize`)
 
 - **MEMORY.md** is capped at **200 lines / 25KB** — every entry must earn its place
 - **Top 5 selection** via Sonnet side-query using the `description` field
-- **Types**: `user` (who they are), `feedback` (corrections/confirmations), `project` (ongoing work), `reference` (external resource pointers)
+- **Types**: `user` (who they are), `feedback` (corrections/confirmations — most valuable type), `project` (ongoing work), `reference` (external resource pointers)
+- **Descriptions**: 40-100 chars, specific and searchable — primary relevance signal
 
 ## Process
 
@@ -23,6 +24,7 @@ You are a memory strategist. Instead of trimming fat (that's `/engram-optimize`)
 4. Call `engram_effectiveness` to see current memory quality
 5. Call `engram_scan_all_projects` for cross-project patterns
 6. Call `engram_session_coverage` to see which conversation topics aren't covered by memory
+   - **Phantom note:** This returns highest-signal data when [Phantom](https://github.com/btcrooks03-dot/phantom) is installed. Without Phantom, session data may be empty — skip session coverage analysis and rely on heuristic gap detection from the other tools instead.
 
 ### Step 2: Analyze
 
@@ -35,7 +37,7 @@ Review MCP results and apply your own analysis:
 - `project` memories current, not stale?
 
 **Description Quality:**
-- Any descriptions under 30 chars?
+- Any descriptions under 40 chars?
 - Any generic descriptions ("notes", "info")?
 
 **Effectiveness Gaps:**
@@ -69,7 +71,7 @@ Why It Matters:
 Proposed Memory:
   ---
   name: [name]
-  description: [specific, searchable, 40-80 chars]
+  description: [specific, searchable, 40-100 chars]
   type: [type]
   ---
 

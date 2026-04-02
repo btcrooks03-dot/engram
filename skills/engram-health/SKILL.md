@@ -26,7 +26,7 @@ Quick validation with effectiveness awareness. Lightweight but thorough.
 - PASS / WARNING (list orphans)
 
 ### 5. Valid Frontmatter
-- YAML frontmatter with `name`, `description` (non-empty, under 150 chars, **30+ chars**), `type` (valid enum)
+- YAML frontmatter with `name`, `description` (non-empty, 40-100 chars ideal, under 150 max), `type` (valid enum: user, feedback, project, reference)
 - PASS / FAIL (list issues)
 
 ### 6. Index Format
@@ -35,7 +35,7 @@ Quick validation with effectiveness awareness. Lightweight but thorough.
 
 ### 7. Description Quality
 Call `engram_generate_descriptions`:
-- Descriptions under 30 chars: WARNING
+- Descriptions under 40 chars: WARNING
 - Generic descriptions: WARNING
 - Show suggested replacements inline
 - PASS if all specific and searchable
