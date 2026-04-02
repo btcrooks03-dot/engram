@@ -53,7 +53,7 @@ Most users don't know any of this. Their memory silently degrades and Claude get
 
 ```bash
 # 1. Add the engram marketplace
-claude plugin marketplace add github:btcrooks03-dot/engram
+claude plugin marketplace add btcrooks03-dot/engram
 
 # 2. Install the plugin
 claude plugin install engram@engram
@@ -64,7 +64,7 @@ claude plugin install engram@engram
 If you're already in a Claude Code session, run these in your terminal (prefix with `!`):
 
 ```
-! claude plugin marketplace add github:btcrooks03-dot/engram
+! claude plugin marketplace add btcrooks03-dot/engram
 ! claude plugin install engram@engram
 ```
 
